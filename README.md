@@ -1,13 +1,15 @@
 # IAB feature for the ns-3 mmWave module #
 Integrated Access and Backhaul (IAB) is a 3GPP Study Item on the possibility of using the same network equipment and resources for both access and backhaul.
 
-In this extension of the [ns-3 mmWave module](https://github.com/nyuwireless-unipd/ns3-mmwave "ns-3 mmWave repo") that adds wireless relaying capabilities in an ns-3 NetDevice, and the possibility of simulating in-band relaying at mmWave frequencies. This extension has been developed by the University of Padova as part of a project with InterDigital Communications.
+This extension of the [ns-3 mmWave module](https://github.com/nyuwireless-unipd/ns3-mmwave "ns-3 mmWave repo") adds wireless relaying capabilities to an ns-3 NetDevice, and the possibility of simulating in-band relaying at mmWave frequencies. This framework has been developed by the University of Padova as part of a project with InterDigital Communications.
 
 Please refer to [our paper](/ "IAB") for a complete description of the model.
 
-## Relevant papers on IAB ##
+# Relevant papers on IAB #
 - [M. Polese, M. Giordani, A. Roy, D. Castor, M. Zorzi, "Distributed Path Selection Strategies for Integrated Access and Backhaul at mmWaves", submitted to the IEEE Global Communications Conference (GLOBECOM), 2018](https://arxiv.org/abs/1805.04351 "globecom paper")
 - [M. Polese, M. Giordani, A. Roy, S. Goyal, D. Castor, M. Zorzi, "End-to-End Simulation of Integrated Access and Backhaul at mmWaves", submitted to IEEE CAMAD, 2018](/ "ns-3 paper")
+
+-----------------
 
 ## mmWave ns-3 module ##
 
