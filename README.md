@@ -6,8 +6,8 @@ This extension of the [ns-3 mmWave module](https://github.com/nyuwireless-unipd/
 Please refer to [our paper](/ "IAB") for a complete description of the model.
 
 # Relevant papers on IAB #
-- [M. Polese, M. Giordani, A. Roy, D. Castor, M. Zorzi, "Distributed Path Selection Strategies for Integrated Access and Backhaul at mmWaves", submitted to the IEEE Global Communications Conference (GLOBECOM), 2018](https://arxiv.org/abs/1805.04351 "globecom paper")
-- [M. Polese, M. Giordani, A. Roy, S. Goyal, D. Castor, M. Zorzi, "End-to-End Simulation of Integrated Access and Backhaul at mmWaves", submitted to IEEE CAMAD, 2018](/ "ns-3 paper")
+- [M. Polese, M. Giordani, A. Roy, D. Castor, M. Zorzi, "Distributed Path Selection Strategies for Integrated Access and Backhaul at mmWaves", IEEE Global Communications Conference (GLOBECOM), 2018](https://arxiv.org/abs/1805.04351 "globecom paper")
+- [M. Polese, M. Giordani, A. Roy, S. Goyal, D. Castor, M. Zorzi, "End-to-End Simulation of Integrated Access and Backhaul at mmWaves", IEEE CAMAD, 2018](https://arxiv.org/abs/1808.00376 "camad paper")
 
 -----------------
 
