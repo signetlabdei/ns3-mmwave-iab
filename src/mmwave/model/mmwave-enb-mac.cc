@@ -957,6 +957,7 @@ MmWaveEnbMac::DoAddUe (uint16_t rnti)
 	MmWaveMacCschedSapProvider::CschedUeConfigReqParameters params;
 	params.m_rnti = rnti;
 	params.m_transmissionMode = 0; // set to default value (SISO) for avoiding random initialization (valgrind error)
+	params.m_ueCapabilities.m_numIabDevsPerRnti = 0; // at the beginning, the number of IAB devs attached to this UE is 0
 	m_macCschedSapProvider->CschedUeConfigReq (params);
 
 	// Create DL transmission HARQ buffers
