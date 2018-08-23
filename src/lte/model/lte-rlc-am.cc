@@ -2033,6 +2033,16 @@ LteRlcAm::DoReceivePdu (Ptr<Packet> p)
                   }
                 }
               }
+              else
+              {
+                // out of order PDU, discard both received packet and buffered
+                //it->second.m_byteSegments.clear ();
+                if(it->second.m_pduComplete == false)
+                {
+                    m_rxonBuffer.erase (it);
+                    NS_LOG_LOGIC ("PDU received out of order (after a segment), discarding");
+                }
+              }
             }
           else
             {
