@@ -923,7 +923,7 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 	              << " UL frame " << (unsigned)ulSfn.m_frameNum << " subframe " << (unsigned)ulSfn.m_sfNum);
 
 	// TODOIAB in this version we only consider the same slot for UL & DL
-	NS_ASSERT_MSG(sfNum == ulSfn.m_sfNum, "different subframes for DL and UL"); 
+	NS_ASSERT_MSG(sfNum == ulSfn.m_sfNum, "different subframes for DL and UL " << (uint32_t)sfNum << " " << (uint32_t)ulSfn.m_sfNum); 
 
 	// IAB find the number of IAB devs that have requested resources via BSRs
 	// uint16_t numIabDevs = GetNumIabRnti();
