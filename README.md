@@ -1,11 +1,9 @@
-# ns-3 IAB module for the paper "Resource Management for 5G NR Integrated Access and Backhaul: a Semi-centralized Approach" #
-Integrated Access and Backhaul (IAB) is a 3GPP Study Item on the possibility of using the same network equipment and resources for both access and backhaul.
+# Code for the paper "Resource Management for 5G NR Integrated Access and Backhaul: a Semi-centralized Approach" #
 
-This extension of the [ns-3 mmWave module](https://github.com/nyuwireless-unipd/ns3-mmwave "ns-3 mmWave repo") adds wireless relaying capabilities to an ns-3 NetDevice, and the possibility of simulating in-band relaying at mmWave frequencies. This framework has been developed by the University of Padova as part of a project with InterDigital Communications. It is still a _work in progress_, and more functionalities will be added soon.
+This repository holds the code for the paper "Resource Management for 5G NR Integrated Access and Backhaul: a Semi-centralized Approach", which is available as a pre-print on [arXiv](https://arxiv.org/abs/2102.09938).
+In particular, we hereby provide the ns-3 IAB module that we used, which is described in [our previous paper](/ "IAB") and on OCTAVE script, as empirical evidence of the optimality of the algorithm that we present.
 
-Please refer to [our paper](/ "IAB") for a complete description of the model.
-
-# Relevant papers on IAB #
+# Other relevant papers on IAB #
 - [M. Polese, M. Giordani, A. Roy, D. Castor, M. Zorzi, "Distributed Path Selection Strategies for Integrated Access and Backhaul at mmWaves", IEEE Global Communications Conference (GLOBECOM), 2018](https://arxiv.org/abs/1805.04351 "globecom paper")
 - [M. Polese, M. Giordani, A. Roy, S. Goyal, D. Castor, M. Zorzi, "End-to-End Simulation of Integrated Access and Backhaul at mmWaves", IEEE CAMAD, 2018](https://arxiv.org/abs/1808.00376 "camad paper")
 
