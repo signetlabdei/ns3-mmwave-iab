@@ -251,14 +251,20 @@ EpcS1apEnb::RecvFromS1apSocket (Ptr<Socket> socket)
 // Implementation of the S1ap SAP Provider
 //
 void
-EpcS1apEnb::DoSendInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t stmsi, uint16_t ecgi) 
+EpcS1apEnb::DoSendInitialUeMessage (EpcS1apSap::InitialUeMessageParams params) 
 {
   NS_LOG_FUNCTION (this);
+  uint64_t mmeUeS1Id = params.mmeUeS1Id;
+  uint16_t enbUeS1Id = params.enbUeS1Id;
+  uint64_t stmsi = params.stmsi; 
+  uint16_t ecgi = params.ecgi;
+  bool iab = params.iab;
 
   NS_LOG_LOGIC("mmeUeS1apId = " << mmeUeS1Id);
   NS_LOG_LOGIC("enbUeS1apId = " << enbUeS1Id);
   NS_LOG_LOGIC("stmsi = " << stmsi);
   NS_LOG_LOGIC("ecgi = " << ecgi);
+  NS_LOG_LOGIC("iab = " << iab);
 
   // TODO check if an assert is needed
 
@@ -278,6 +284,7 @@ EpcS1apEnb::DoSendInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint
   initialMessage.SetSTmsi(mmeUeS1Id); // IAB in principle this is diff from mmeUeS1Id, but we use the same
   initialMessage.SetEcgi(ecgi);
   initialMessage.AddParent(stmsi);
+  initialMessage.SetIab(iab);
   NS_LOG_INFO ("S1ap Initial Message header " << initialMessage);
 
   EpcS1APHeader s1apHeader;
@@ -548,6 +555,7 @@ EpcS1apMme::RecvFromS1apSocket (Ptr<Socket> socket)
     uint16_t enbUeS1Id = initialMessage.GetEnbUeS1Id();
     uint64_t stmsi = initialMessage.GetSTmsi();
     uint16_t ecgi = initialMessage.GetEcgi();
+    bool iab = initialMessage.GetIab();
 
     NS_LOG_LOGIC("mmeUeS1apId = " << mmeUeS1Id);
     NS_LOG_LOGIC("enbUeS1apId = " << enbUeS1Id);
@@ -555,9 +563,13 @@ EpcS1apMme::RecvFromS1apSocket (Ptr<Socket> socket)
     NS_LOG_LOGIC("ecgi = " << ecgi);
 
     // TODO check if ASSERT is needed
-
-    m_s1apSapUser->InitialUeMessage(mmeUeS1Id, enbUeS1Id, stmsi, ecgi);
-
+    EpcS1apSap::InitialUeMessageParams params;
+    params.iab = iab;
+    params.mmeUeS1Id = mmeUeS1Id;
+    params.enbUeS1Id = enbUeS1Id;
+    params.stmsi = stmsi;
+    params.ecgi = ecgi;
+    m_s1apSapUser->InitialUeMessage(params);
   }
   else if (procedureCode == EpcS1APHeader::PathSwitchRequest)
   {

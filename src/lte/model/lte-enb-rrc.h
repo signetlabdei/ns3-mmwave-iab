@@ -571,6 +571,12 @@ private:
    */
   TracedCallback<uint64_t, uint16_t, uint16_t> m_secondaryRlcCreatedTrace;
 
+  /**
+   * The `SetupDataRadioBearer' trace source. Fired upon receiving a request to
+   * set up a DRB by the UeManager. Exporting IMSI, cellId, RNTI.
+   */
+  TracedCallback<uint64_t, uint16_t, uint16_t> m_setupDataRadioBearerTrace;
+
   uint16_t m_sourceX2apId;
   uint16_t m_sourceCellId;
   uint16_t m_targetCellId;

@@ -78,7 +78,7 @@ public:
 		std::list<uint32_t>	retxPacketSizes;
 		std::list<double>	txPacketDelays;
 		std::list<double>	retxPacketDelays;
-		double arrivalRate;		// average bits per s
+		double arrivalRate = 0;		// average bits per s
   };
 
   /**

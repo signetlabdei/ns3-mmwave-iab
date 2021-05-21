@@ -161,12 +161,13 @@ EpcS1APHeader::SetNumberOfIes (uint32_t numberOfIes)
 NS_OBJECT_ENSURE_REGISTERED (EpcS1APInitialUeMessageHeader);
 
 EpcS1APInitialUeMessageHeader::EpcS1APInitialUeMessageHeader ()
-  : m_numberOfIes (1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1),
-    m_headerLength (3 + 2 + 6 + 4 + 2 + 9 + 9 + 2),
+  : m_numberOfIes (1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1),
+    m_headerLength (3 + 2 + 6 + 4 + 2 + 9 + 9 + 1 + 2),
     m_stmsi (0xfffffffa),
     m_mmeUeS1Id (0xfffffffa),
     m_enbUeS1Id (0xfffa),
     m_ecgi (0xfffa),
+    m_iab (0),
     m_numParentImsi (0)
 {
   m_parentImsiList.clear();
@@ -179,6 +180,7 @@ EpcS1APInitialUeMessageHeader::~EpcS1APInitialUeMessageHeader ()
   m_stmsi = 0xfffffffb;
   m_enbUeS1Id = 0xfffb;
   m_ecgi = 0xfffb;
+  m_iab = false;
   m_mmeUeS1Id = 0xfffffffb;
   m_numParentImsi = 0xfffb;
   m_parentImsiList.clear();
@@ -235,6 +237,8 @@ EpcS1APInitialUeMessageHeader::Serialize (Buffer::Iterator start) const
   i.WriteU64 (m_mmeUeS1Id);         // mmeUeS1Id, not in the standard?
   i.WriteU8 (0);                    // criticality = REJECT
 
+  i.WriteU8 (m_iab);                // iab flag
+
   i.WriteHtonU16 (m_numParentImsi);
 
   for(auto parentImsiIter : m_parentImsiList)
@@ -288,6 +292,10 @@ EpcS1APInitialUeMessageHeader::Deserialize (Buffer::Iterator start)
   m_headerLength += 9;
   m_numberOfIes++;
 
+  m_iab = i.ReadU8();             // IAB flag
+  m_headerLength += 1;
+  m_numberOfIes++;
+
   m_numParentImsi = i.ReadNtohU16();
   m_headerLength += 2;
   m_numberOfIes++;
@@ -309,6 +317,7 @@ EpcS1APInitialUeMessageHeader::Print (std::ostream &os) const
   os << " EnbUeS1Id = " << m_enbUeS1Id;
   os << " ECGI = " << m_ecgi;
   os << " S-TMSI = " << m_stmsi;
+  os << " IAB = " << m_iab; 
   os << " num IMSI par " << m_numParentImsi;
 }
 
@@ -358,6 +367,18 @@ void
 EpcS1APInitialUeMessageHeader::SetEcgi (uint16_t ecgi)
 {
   m_ecgi = ecgi;
+}
+
+bool
+EpcS1APInitialUeMessageHeader::GetIab() const
+{
+  return m_iab;
+}
+
+void
+EpcS1APInitialUeMessageHeader::SetIab(bool iab)
+{
+  m_iab = iab;
 }
 
 std::list<uint64_t>

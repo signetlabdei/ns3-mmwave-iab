@@ -124,8 +124,13 @@ EpcMme::AddBearer (uint64_t imsi, Ptr<EpcTft> tft, EpsBearer bearer)
 // S1-AP SAP MME forwarded methods
 
 void 
-EpcMme::DoInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t imsi, uint16_t gci)
+EpcMme::DoInitialUeMessage (EpcS1apSap::InitialUeMessageParams params)
 {
+  uint64_t mmeUeS1Id = params.mmeUeS1Id;
+  uint16_t enbUeS1Id = params.enbUeS1Id;
+  uint64_t imsi = params.stmsi; 
+  uint16_t gci = params.ecgi;
+
   NS_LOG_FUNCTION (this << mmeUeS1Id << enbUeS1Id << imsi << gci);
   std::map<uint64_t, Ptr<UeInfo> >::iterator it = m_ueInfoMap.find (imsi);
   NS_ASSERT_MSG (it != m_ueInfoMap.end (), "could not find any UE with IMSI " << imsi);

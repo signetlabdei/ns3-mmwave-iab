@@ -47,7 +47,7 @@ public:
    * \param imsi 
    * \param rnti 
    */
-  virtual void InitialUeMessage (uint64_t imsi, uint16_t rnti) = 0;
+  virtual void InitialUeMessage (uint64_t imsi, uint16_t rnti, bool iab) = 0;
 
   /**
    *  \brief Triggers epc-enb-application to send ERAB Release Indication message towards MME
@@ -161,7 +161,7 @@ public:
   MemberEpcEnbS1SapProvider (C* owner);
 
   // inherited from EpcEnbS1SapProvider
-  virtual void InitialUeMessage (uint64_t imsi, uint16_t rnti);
+  virtual void InitialUeMessage (uint64_t imsi, uint16_t rnti, bool iab);
   virtual void DoSendReleaseIndication (uint64_t imsi, uint16_t rnti, uint8_t bearerId);
 
   virtual void PathSwitchRequest (PathSwitchRequestParameters params);
@@ -185,9 +185,9 @@ MemberEpcEnbS1SapProvider<C>::MemberEpcEnbS1SapProvider ()
 
 
 template <class C>
-void MemberEpcEnbS1SapProvider<C>::InitialUeMessage (uint64_t imsi, uint16_t rnti)
+void MemberEpcEnbS1SapProvider<C>::InitialUeMessage (uint64_t imsi, uint16_t rnti, bool iab)
 {
-  m_owner->DoInitialUeMessage (imsi, rnti);
+  m_owner->DoInitialUeMessage (imsi, rnti, iab);
 }
 
 template <class C>

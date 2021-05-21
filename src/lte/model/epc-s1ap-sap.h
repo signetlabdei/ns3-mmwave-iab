@@ -92,6 +92,23 @@ public:
     uint32_t    enbTeid;    
   };
 
+  /** 
+   * 3GPP TS 36.413 V13.1.0 section 9.1.7.1
+   * \param mmeUeS1Id in practice, we use the IMSI
+   * \param enbUeS1Id in practice, we use the RNTI
+   * \param stmsi IAB: changed from IMSI to the IMSI of the IAB node to which the UE is connected
+   * \param ecgi in practice, the cell Id
+   * \param iab to signal that the UE that is attaching is an IAB node
+   */
+  struct InitialUeMessageParams
+  { 
+    bool iab;
+    uint64_t mmeUeS1Id;
+    uint16_t enbUeS1Id; 
+    uint64_t stmsi;
+    uint16_t ecgi;
+  };
+
 };
 
 
@@ -107,14 +124,9 @@ class EpcS1apSapMme : public EpcS1apSap
 public:
 
   /** 
-   * 3GPP TS 36.413 V13.1.0 section 9.1.7.1
-   * \param mmeUeS1Id in practice, we use the IMSI
-   * \param enbUeS1Id in practice, we use the RNTI
-   * \param stmsi IAB: changed from IMSI to the IMSI of the IAB node to which the UE is connected
-   * \param ecgi in practice, the cell Id
-   * 
+   * See the doc for the InitialUeMessageParams struct
    */
-  virtual void InitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t stmsi, uint16_t ecgi) = 0;
+  virtual void InitialUeMessage (InitialUeMessageParams params) = 0;
 
   /**
     * \brief As per 3GPP TS 23.401 Release 9 V9.5.0 Figure 5.4.4.2-1  eNB sends indication of Bearer Release to MME
@@ -157,7 +169,7 @@ class EpcS1apSapEnbProvider : public EpcS1apSap
 {
 public: 
    
-  virtual void SendInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t stmsi, uint16_t ecgi) = 0;
+  virtual void SendInitialUeMessage (InitialUeMessageParams params) = 0;
 
   virtual void SendErabReleaseIndication (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, std::list<ErabToBeReleasedIndication> erabToBeReleaseIndication ) = 0;
 
@@ -243,7 +255,7 @@ public:
   MemberEpcS1apSapMme (C* owner);
 
   // inherited from EpcS1apSapMme
-  virtual void InitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t imsi, uint16_t ecgi);
+  virtual void InitialUeMessage (InitialUeMessageParams params);
   virtual void ErabReleaseIndication (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, std::list<ErabToBeReleasedIndication> erabToBeReleaseIndication );
 
   virtual void InitialContextSetupResponse (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, std::list<ErabSetupItem> erabSetupList);
@@ -266,9 +278,9 @@ MemberEpcS1apSapMme<C>::MemberEpcS1apSapMme ()
 }
 
 template <class C>
-void MemberEpcS1apSapMme<C>::InitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t imsi, uint16_t ecgi)
+void MemberEpcS1apSapMme<C>::InitialUeMessage (InitialUeMessageParams params)
 {
-  m_owner->DoInitialUeMessage (mmeUeS1Id, enbUeS1Id, imsi, ecgi);
+  m_owner->DoInitialUeMessage (params);
 }
 
 template <class C>
@@ -303,7 +315,7 @@ public:
   MemberEpcS1apSapEnbProvider (C* owner);
 
   // inherited from MemberEpcS1apSapEnbProvider
-  virtual void SendInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t imsi, uint16_t ecgi);
+  virtual void SendInitialUeMessage (InitialUeMessageParams params);
   virtual void SendErabReleaseIndication (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, std::list<ErabToBeReleasedIndication> erabToBeReleaseIndication );
 
   virtual void SendInitialContextSetupResponse (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, std::list<ErabSetupItem> erabSetupList);
@@ -327,9 +339,9 @@ MemberEpcS1apSapEnbProvider<C>::MemberEpcS1apSapEnbProvider ()
 }
 
 template <class C>
-void MemberEpcS1apSapEnbProvider<C>::SendInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t imsi, uint16_t ecgi)
+void MemberEpcS1apSapEnbProvider<C>::SendInitialUeMessage (InitialUeMessageParams params)
 {
-  m_owner->DoSendInitialUeMessage (mmeUeS1Id, enbUeS1Id, imsi, ecgi);
+  m_owner->DoSendInitialUeMessage (params);
 }
 
 template <class C>

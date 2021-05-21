@@ -39,6 +39,7 @@
 #include <ns3/epc-enb-s1-sap.h>
 #include <ns3/epc-s1ap-sap.h>
 #include <map>
+#include <set>
 
 namespace ns3 {
 class EpcEnbS1SapUser;
@@ -127,6 +128,36 @@ public:
    */
   void RecvFromS1uSocket (Ptr<Socket> socket);
 
+  /** 
+   * Returns the IMSI of a local device from its RNTI
+   * 
+   * \param rnti The RNTI of device connected to this BS
+   */
+  uint64_t GetImsiFromLocalRnti (uint16_t rnti);
+
+  /** 
+   * Returns the RNTI of a local device from its IMSI
+   * 
+   * \param imsi The IMSI of device connected to this BS
+   */
+  uint16_t GetLocalRntiFromImsi (uint64_t imsi);
+
+  /** 
+   * Returns a set containing the RNTIs of the UEs connected to this device
+   */
+  std::set<uint16_t> GetSetUeRntis ();
+  
+  /** 
+   * Returns the cell ID of this application's device
+   */
+  uint64_t GetCellId ();
+
+  /** 
+   * Returns whether the given IMSI corresponds to an IAB node or not
+   * 
+   * \param imsi The target device's IMSI
+   */
+  bool IsImsiIab (uint64_t imsi);
 
   struct EpsFlowId_t
   {
@@ -147,7 +178,7 @@ public:
 private:
 
   // ENB S1 SAP provider methods
-  void DoInitialUeMessage (uint64_t imsi, uint16_t rnti);
+  void DoInitialUeMessage (uint64_t imsi, uint16_t rnti, bool iab);
   void DoPathSwitchRequest (EpcEnbS1SapProvider::PathSwitchRequestParameters params);
   void DoUeContextRelease (uint16_t rnti);
   
@@ -262,6 +293,7 @@ private:
   std::map<uint64_t, uint16_t> m_imsiRntiMap;
   std::map<uint16_t, uint64_t> m_rntiLocalImsiMap;
   std::map<uint16_t, uint64_t> m_rntiRemoteImsiMap;
+  std::map<uint16_t, uint32_t> m_rntiMaxNumIabNodesMap;
 
   std::map<uint64_t, bool> m_imsiIabMap; // associate true only to the IMSI of IAB nodes
   std::map<uint32_t, bool> m_teidRemoteMap; // associate true only to the teid of nodes that are not local

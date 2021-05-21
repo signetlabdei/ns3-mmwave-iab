@@ -217,6 +217,9 @@ public:
    */
   uint16_t GetRnti () const;
 
+  void SetIab(bool iab);
+  bool GetIab();
+
 
   /**
    * add an entry to the m_isMmWaveCellMap, respectively
@@ -1015,6 +1018,7 @@ private:
   bool m_interRatHoCapable;
   LteRrcSap::RachConfigDedicated m_rachConfigDedicated;
   bool m_ncRaStarted;
+  bool m_iab;
 
   // lossless HO
   std::vector < Ptr<Packet> > m_rlcBufferToBeForwarded;

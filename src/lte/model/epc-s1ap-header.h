@@ -97,6 +97,9 @@ public:
   uint16_t GetEcgi () const;
   void SetEcgi (uint16_t ecgi);
 
+  bool GetIab() const;
+  void SetIab(bool iab);
+
   uint32_t GetLengthOfIes () const;
   uint32_t GetNumberOfIes () const;
 
@@ -112,6 +115,7 @@ private:
   uint16_t          m_enbUeS1Id;
   uint16_t          m_ecgi;
 
+  bool              m_iab;
   uint16_t          m_numParentImsi;
   std::list<uint64_t> m_parentImsiList; // for devs connected to IAB nodes 
 };

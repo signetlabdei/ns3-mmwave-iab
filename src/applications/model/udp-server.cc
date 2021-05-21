@@ -29,12 +29,11 @@
 #include "ns3/socket-factory.h"
 #include "ns3/packet.h"
 #include "ns3/uinteger.h"
+#include "ns3/string.h"
 #include "packet-loss-counter.h"
 
 #include "seq-ts-header.h"
 #include "udp-server.h"
-
-#include "ns3/string.h"
 
 namespace ns3 {
 
@@ -66,6 +65,12 @@ UdpServer::GetTypeId (void)
                   StringValue("UdpServerRx.txt"),
                   MakeStringAccessor(&UdpServer::m_outFilename),
                   MakeStringChecker ())
+    .AddTraceSource ("Rx", "A packet has been received",
+                     MakeTraceSourceAccessor (&UdpServer::m_rxTrace),
+                     "ns3::Packet::TracedCallback")
+    .AddTraceSource ("RxWithAddresses", "A packet has been received",
+                     MakeTraceSourceAccessor (&UdpServer::m_rxTraceWithAddresses),
+                     "ns3::Packet::TwoAddressTracedCallback")
   ;
   return tid;
 }
@@ -166,6 +171,7 @@ UdpServer::StopApplication ()
     {
       m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
     }
+
   if(m_outFile.is_open())
   {
     m_outFile.close();
@@ -178,8 +184,12 @@ UdpServer::HandleRead (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   Ptr<Packet> packet;
   Address from;
+  Address localAddress;
   while ((packet = socket->RecvFrom (from)))
     {
+      socket->GetSockName (localAddress);
+      m_rxTrace (packet);
+      m_rxTraceWithAddresses (packet, from, localAddress);
       if (packet->GetSize () > 0)
         {
           SeqTsHeader seqTs;
@@ -198,15 +208,14 @@ UdpServer::HandleRead (Ptr<Socket> socket)
                            " TXtime: " << seqTs.GetTs () <<
                            " RXtime: " << Simulator::Now () <<
                            " Delay: " << Simulator::Now () - seqTs.GetTs ());
-
-              m_outFile << packet->GetSize () <<
-                           " " << InetSocketAddress::ConvertFrom (from).GetIpv4 () <<
-                           " " << m_port <<
-                           " " << currentSequenceNumber <<
-                           " " << packet->GetUid () <<
-                           " " << seqTs.GetTs () <<
-                           " " << Simulator::Now () <<
-                           " " << Simulator::Now () - seqTs.GetTs () << "\n";
+            //  m_outFile << packet->GetSize () <<
+            //               " " << InetSocketAddress::ConvertFrom (from).GetIpv4 () <<
+            //               " " << m_port <<
+            //               " " << currentSequenceNumber <<
+            //               " " << packet->GetUid () <<
+            //               " " << seqTs.GetTs () <<
+            //               " " << Simulator::Now () <<
+            //              " " << Simulator::Now () - seqTs.GetTs () << "\n";
             }
           else if (Inet6SocketAddress::IsMatchingType (from))
             {
@@ -225,9 +234,7 @@ UdpServer::HandleRead (Ptr<Socket> socket)
                            " " << Simulator::Now () <<
                            " " << Simulator::Now () - seqTs.GetTs () << "\n";
             }
-
-          m_outFile.close();
-
+          m_outFile.close(); 
           m_lossCounter.NotifyReceived (currentSequenceNumber);
           m_received++;
         }

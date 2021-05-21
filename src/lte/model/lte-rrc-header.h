@@ -220,6 +220,8 @@ public:
 
   std::bitset<1> GetIsMc () const;
 
+  std::bitset<1> GetIsIab () const;
+
 private:
   std::bitset<8> m_mmec;
   std::bitset<32> m_mTmsi;
@@ -229,6 +231,7 @@ private:
     MO_SIGNALLING, MO_DATA, SPARE3, SPARE2, SPARE1
   } m_establishmentCause;
   std::bitset<1> m_spare;
+  std::bitset<1> m_iab;
 };
 
 class RrcConnectToMmWaveHeader : public RrcDlCcchMessage

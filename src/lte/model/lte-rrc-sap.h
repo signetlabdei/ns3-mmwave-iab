@@ -594,6 +594,7 @@ public:
   {
     uint64_t ueIdentity;
     bool isMc;
+    bool isIab;
   };
 
   struct RrcConnectionSetup

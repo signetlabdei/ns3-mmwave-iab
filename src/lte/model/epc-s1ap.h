@@ -122,7 +122,7 @@ public:
 
 protected:
   // Interface provided by EpcS1apSapEnbProvider
-  virtual void DoSendInitialUeMessage (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, uint64_t stmsi, uint16_t ecgi);
+  virtual void DoSendInitialUeMessage (EpcS1apSap::InitialUeMessageParams params);
   virtual void DoSendErabReleaseIndication (uint64_t mmeUeS1Id, uint16_t enbUeS1Id, std::list<EpcS1apSap::ErabToBeReleasedIndication> erabToBeReleaseIndication );
   virtual void DoSendInitialContextSetupResponse (uint64_t mmeUeS1Id,
                                                   uint16_t enbUeS1Id,

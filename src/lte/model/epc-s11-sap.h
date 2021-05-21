@@ -44,6 +44,10 @@ public:
    */
   struct GtpcMessage
   {
+    GtpcMessage() : teid(0)
+    {
+
+    }
     uint32_t teid; ///< TEID
   };
 
@@ -169,7 +173,7 @@ public:
 
   /// BearerContextToBeCreated structure
   struct BearerContextToBeCreated
-  {    
+  {
     EpcS11Sap::Fteid sgwFteid; ///< FTEID
     uint8_t epsBearerId; ///< EPS bearer ID
     EpsBearer bearerLevelQos; ///< bearer QOS level
@@ -182,6 +186,13 @@ public:
    */
   struct CreateSessionRequestMessage : public GtpcMessage
   {
+    CreateSessionRequestMessage() 
+    {
+      imsi = 0;
+      uli.gci = 0;
+      bearerContextsToBeCreated = std::list<BearerContextToBeCreated>();
+    }
+
     uint64_t imsi; ///< IMSI
     Uli uli; ///< ULI
     std::list<BearerContextToBeCreated> bearerContextsToBeCreated; ///< list of bearer contexts to be created    

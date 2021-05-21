@@ -107,6 +107,7 @@ EpcEnbApplication::EpcEnbApplication (Ptr<Socket> lteSocket, Ptr<Socket> s1uSock
   m_lteSocket->SetRecvCallback (MakeCallback (&EpcEnbApplication::RecvFromLteSocket, this));
   m_s1SapProvider = new MemberEpcEnbS1SapProvider<EpcEnbApplication> (this);
   m_s1apSapEnb = new MemberEpcS1apSapEnb<EpcEnbApplication> (this);
+  m_rntiMaxNumIabNodesMap.clear();
 }
 
 
@@ -143,7 +144,7 @@ EpcEnbApplication::GetS1apSapEnb ()
 }
 
 void 
-EpcEnbApplication::DoInitialUeMessage (uint64_t imsi, uint16_t rnti)
+EpcEnbApplication::DoInitialUeMessage (uint64_t imsi, uint16_t rnti, bool iab)
 {
   NS_LOG_FUNCTION (this);
   // side effect: create entry if not exist
@@ -160,33 +161,26 @@ EpcEnbApplication::DoInitialUeMessage (uint64_t imsi, uint16_t rnti)
     m_rntiLocalImsiMap[rnti] = imsi;
   }
 
+  NS_LOG_INFO("DoInitialUeMessage imsi " << imsi << " rnti " << rnti << " iab " << iab);
 
-  // auto rntiItChild = m_rntiImsiChildrenMap.find(rnti);
-  // if(rntiItChild != m_rntiImsiChildrenMap.end())
-  // {
-  //   if( !((std::find(rntiItChild->second.begin(), rntiItChild->second.end(), imsi)) != rntiItChild->second.end()))
-  //   {
-  //     // add the imsi to the list
-  //     rntiItChild->second.push_back(imsi);
-  //   }
-  // }
-  // else
-  // {
-  //   std::vector<uint64_t> imsiVec;
-  //   imsiVec.push_back(imsi);
-  //   m_rntiImsiChildrenMap.insert(std::make_pair(rnti, imsiVec));
-  // }
-  // // scan the list
-  // NS_LOG_INFO("EpcEnbApplication DoInitialUeMessage RNTI " << rnti << " IMSI " << 0 << " scan children list");
-  // for (auto imsiInRntiListIter : m_rntiImsiChildrenMap.find(rnti)->second)
-  // {
-  //   NS_LOG_INFO("Present IMSI " << imsiInRntiListIter);
-  // }
+  if(iab)
+  {
+    m_rntiMaxNumIabNodesMap[rnti] = 1;
+    NS_LOG_INFO("cellId " << m_cellId << 
+      " the maximum depth of the IAB tree for rnti " << rnti << " in this case is " 
+        << m_rntiMaxNumIabNodesMap[rnti] << ", but the max is " << m_rntiMaxNumIabNodesMap[rnti]);
+  }
 
-                                            // IAB hack: the first and third field
-                                            // were the same in the original implementation
-                                            // Change the third to be the 0, which represents wired devices!
-  m_s1apSapEnbProvider->SendInitialUeMessage (imsi, rnti, 0, m_cellId); // TODO if more than one MME is used, extend this call
+  // IAB hack: the first and third field
+  // were the same in the original implementation
+  // Change the third to be the 0, which represents wired devices!
+  EpcS1apSap::InitialUeMessageParams params;
+  params.iab = iab;
+  params.mmeUeS1Id = imsi;
+  params.enbUeS1Id = rnti;
+  params.stmsi = 0; // 0 represents wired devices!
+  params.ecgi = m_cellId;
+  m_s1apSapEnbProvider->SendInitialUeMessage (params); // TODO if more than one MME is used, extend this call
 }
 
 void 
@@ -286,6 +280,17 @@ EpcEnbApplication::DoInitialContextSetupRequest (uint64_t mmeUeS1Id, uint16_t en
           if(rntiChildrenIter != m_rntiImsiChildrenMap.end())
           {
             numChildren = rntiChildrenIter->second.size();
+          }
+
+          auto rntiRbidTeidIter = m_rbidTeidMap.find(rnti);
+          if(rntiRbidTeidIter != m_rbidTeidMap.end())
+          {
+            auto bidTeidIter = rntiRbidTeidIter->second.find(erabIt->erabId);
+            if(bidTeidIter != rntiRbidTeidIter->second.end())
+            {
+              NS_LOG_INFO("cellId " << m_cellId << " rnti " << rnti << " imsi " << imsi << " bearer already created (duplicated request)");
+              break;
+            }
           }
 
           NS_LOG_INFO(this << "Setup Radio Bearer for imsi " << imsi << " rnti " << 
@@ -398,6 +403,7 @@ EpcEnbApplication::RecvFromLteSocket (Ptr<Socket> socket)
       if(packet->RemoveHeader(initialMessageHeader))
       {
         imsi = initialMessageHeader.GetMmeUeS1Id();
+        bool iab = initialMessageHeader.GetIab();
 
         // get all the imsis which are the children of this rnti
         std::list<uint64_t> imsiList = initialMessageHeader.GetParentImsiList();
@@ -418,6 +424,28 @@ EpcEnbApplication::RecvFromLteSocket (Ptr<Socket> socket)
             // NS_LOG_INFO("add the imsi to the list");
             rntiIt->second.push_back(imsiChildIter);
           }
+        }
+
+        if(iab)
+        {
+          auto rntiMaxIt = m_rntiMaxNumIabNodesMap.find(rnti);
+          uint32_t depthTmp = imsiList.size() + 1;
+          if (rntiMaxIt == m_rntiMaxNumIabNodesMap.end())
+          {
+            m_rntiMaxNumIabNodesMap.insert(std::make_pair(rnti, depthTmp));
+            rntiMaxIt = m_rntiMaxNumIabNodesMap.find(rnti);
+          }
+          else
+          {
+            uint32_t oldMax = rntiMaxIt->second;
+            if (depthTmp > oldMax)
+            {
+              rntiMaxIt->second = depthTmp;
+            }
+          }
+          NS_LOG_INFO("cellId " << m_cellId << 
+            " the maximum depth of the IAB tree for rnti " << rnti << " in this case is " 
+            << depthTmp << ", but the max is " << rntiMaxIt->second);
         }
 
         // scan the list
@@ -534,12 +562,27 @@ EpcEnbApplication::DoForwardIabS1apReply (Ptr<Packet> packet)
         rntiChildrenIter->second.erase(imsiChildEntry);
       }
     }
-    NS_LOG_INFO("EpcEnbApplication RNTI " << localRntiIt->second << " has " << rntiChildrenIter->second.size() 
+    NS_LOG_INFO("cellID " << m_cellId << " EpcEnbApplication RNTI " << localRntiIt->second << " has " << rntiChildrenIter->second.size() 
       << " IAB children");
+    
+    // let's find the maximum depth of the IAB tree from this node
+    auto rntiMaxIt = m_rntiMaxNumIabNodesMap.find(localRntiIt->second);
+    uint32_t maxDepth = 0;
+    if (rntiMaxIt != m_rntiMaxNumIabNodesMap.end())
+    {
+      maxDepth = rntiMaxIt->second;
+      NS_LOG_INFO("cellId " << m_cellId << " rnti " << localRntiIt->second
+        << " has maxDepth " << maxDepth);
+    }
+    else
+    {
+      NS_FATAL_ERROR("rnti " << localRntiIt->second << " has no max depth associated");
+    }
+
     // notify the scheduler
     EpcEnbS1SapUser::NotifyNumIabPerRntiParameters params;
     params.rnti = localRntiIt->second;
-    params.numIab = rntiChildrenIter->second.size();
+    params.numIab = maxDepth;
     params.iab = true;
     m_s1SapUser->NotifyNumIabPerRnti (params);
 
@@ -645,6 +688,61 @@ EpcEnbApplication::SendToS1uSocket (Ptr<Packet> packet, uint32_t teid)
   packet->AddHeader (gtpu);
   uint32_t flags = 0;
   m_s1uSocket->SendTo (packet, flags, InetSocketAddress (m_sgwS1uAddress, m_gtpuUdpPort));
+}
+
+uint64_t
+EpcEnbApplication::GetImsiFromLocalRnti (uint16_t rnti)
+{
+  auto mapIt = m_rntiLocalImsiMap.find(rnti);
+  if(mapIt == m_rntiLocalImsiMap.end())
+  {
+    NS_ABORT_MSG ("RNTI: " << rnti << " NOT FOUND!");
+  }
+  return mapIt->second;
+}
+
+uint16_t
+EpcEnbApplication::GetLocalRntiFromImsi (uint64_t imsi)
+{
+  auto mapIt = m_imsiRntiMap.find(imsi);
+  if(mapIt == m_imsiRntiMap.end())
+  {
+    NS_LOG_UNCOND (Now().GetMicroSeconds() << " IMSI: " << imsi << " NOT FOUND FROM DONOR" );
+    return 0;
+  }
+  return mapIt->second;
+}
+
+std::set<uint16_t> 
+EpcEnbApplication::GetSetUeRntis ()
+{
+  std::set<uint16_t> ueRntiSet {};
+  for (auto localDevice : m_rntiLocalImsiMap)
+  {
+    if (!IsImsiIab(localDevice.second))
+    {
+      ueRntiSet.insert (localDevice.first);
+    }
+  }
+  return ueRntiSet;
+}
+
+uint64_t
+EpcEnbApplication::GetCellId ()
+{
+  return m_cellId;
+}
+
+bool
+EpcEnbApplication::IsImsiIab (uint64_t imsi)
+{
+  auto imsiIabIt = m_imsiIabMap.find (imsi);
+  if(imsiIabIt == m_imsiIabMap.end ())
+  {
+    // UE/IAB node not RRC Connected yet
+    return false;
+  }
+  return imsiIabIt->second;
 }
 
 void

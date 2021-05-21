@@ -3903,6 +3903,7 @@ RrcConnectionRequestHeader::RrcConnectionRequestHeader () : RrcUlCcchMessage ()
   m_mTmsi = std::bitset<32> (0ul);
   m_establishmentCause = MO_SIGNALLING;
   m_spare = std::bitset<1> (0ul);
+  m_iab = std::bitset<1> (0ul);
 }
 
 // Destructor
@@ -3926,7 +3927,8 @@ RrcConnectionRequestHeader::Print (std::ostream &os) const
   os << "MMEC:" << m_mmec << std::endl;
   os << "MTMSI:" << m_mTmsi << std::endl;
   os << "EstablishmentCause:" << m_establishmentCause << std::endl;
-  os << "Spare: " << m_spare << std::endl;
+  os << "Spare: " << m_spare; 
+  os << "Iab: " << m_iab << std::endl;
 }
 
 void
@@ -3968,6 +3970,9 @@ RrcConnectionRequestHeader::PreSerialize () const
   // Serialize spare : BIT STRING (SIZE (1))
   SerializeBitstring (m_spare);
 
+  // Serialize IAB : BIT STRING (SIZE (1))
+  SerializeBitstring (m_iab);
+
   // Finish serialization
   FinalizeSerialization ();
 }
@@ -4008,6 +4013,9 @@ RrcConnectionRequestHeader::Deserialize (Buffer::Iterator bIterator)
   // Deserialize spare
   bIterator = DeserializeBitstring (&m_spare,bIterator);
 
+  // Deserialize IAB
+  bIterator = DeserializeBitstring (&m_iab,bIterator);
+
   return GetSerializedSize ();
 }
 
@@ -4017,6 +4025,7 @@ RrcConnectionRequestHeader::SetMessage (LteRrcSap::RrcConnectionRequest msg)
   m_mTmsi = std::bitset<32> ((uint32_t)msg.ueIdentity);
   m_mmec = std::bitset<8> ((uint32_t)(msg.ueIdentity >> 32));
   m_spare = std::bitset<1> (msg.isMc); 
+  m_iab = std::bitset<1> (msg.isIab);
   m_isDataSerialized = false;
 }
 
@@ -4026,6 +4035,7 @@ RrcConnectionRequestHeader::GetMessage () const
   LteRrcSap::RrcConnectionRequest msg;
   msg.ueIdentity = (((uint64_t) m_mmec.to_ulong ()) << 32) | (m_mTmsi.to_ulong ());
   msg.isMc = (bool) m_spare[0];
+  msg.isIab = (bool) m_iab[1];
   return msg;
 }
 
@@ -4045,6 +4055,12 @@ std::bitset<1>
 RrcConnectionRequestHeader::GetIsMc () const
 {
   return m_spare;
+}
+
+std::bitset<1>
+RrcConnectionRequestHeader::GetIsIab () const
+{
+  return m_iab;
 }
 
 //////////////////// RrcConnectionRequest class ////////////////////////

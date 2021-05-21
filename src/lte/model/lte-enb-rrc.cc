@@ -343,6 +343,10 @@ TypeId UeManager::GetTypeId (void)
                      "fired upon receiving RecvRlcSetupRequest",
                      MakeTraceSourceAccessor (&UeManager::m_secondaryRlcCreatedTrace),
                      "ns3::UeManager::ImsiCidRntiTracedCallback")
+    .AddTraceSource ("DataRadioBearerCreated",
+                     "fired upon creating a Data Radio Bearer",
+                     MakeTraceSourceAccessor (&UeManager::m_setupDataRadioBearerTrace),
+                     "ns3::UeManager::ImsiCidRntiTracedCallback")
   ;
   return tid;
 }
@@ -495,6 +499,8 @@ UeManager::SetupDataRadioBearer (EpsBearer bearer, uint8_t bearerId, uint32_t gt
   // if a bearer for a certain UE is of the IAB kind, then we assume that the UE is an IAB device
   m_iab = iab;
   m_needIabPhyMacConfiguration = iab;
+
+  m_setupDataRadioBearerTrace(m_imsi, m_rrc->GetCellId(), m_rnti);
 
   ScheduleRrcConnectionReconfiguration ();
 }
@@ -1428,6 +1434,7 @@ UeManager::RecvRrcConnectionRequest (LteRrcSap::RrcConnectionRequest msg)
       {
         m_connectionRequestTimeout.Cancel ();
         m_isMc = msg.isMc;
+        m_iab = msg.isIab;
 
         if (m_rrc->m_admitRrcConnectionRequest == true)
           {
@@ -1437,7 +1444,7 @@ UeManager::RecvRrcConnectionRequest (LteRrcSap::RrcConnectionRequest msg)
             NS_LOG_DEBUG("For imsi " << m_imsi << " m_rrc->m_mmWaveCellSetupCompleted[m_imsi] " << m_rrc->m_mmWaveCellSetupCompleted[m_imsi]);
             if (!m_isMc && m_rrc->m_s1SapProvider != 0)
               {
-                m_rrc->m_s1SapProvider->InitialUeMessage (m_imsi, m_rnti);
+                m_rrc->m_s1SapProvider->InitialUeMessage (m_imsi, m_rnti, m_iab);
               }
 
             // send RRC CONNECTION SETUP to UE
@@ -3969,42 +3976,50 @@ LteEnbRrc::DoRecvRrcConnectionReconfigurationCompleted (uint16_t rnti, LteRrcSap
   GetUeManager (rnti)->RecvRrcConnectionReconfigurationCompleted (msg);
 }
 
-void 
+void
 LteEnbRrc::DoRecvRrcConnectionReestablishmentRequest (uint16_t rnti, LteRrcSap::RrcConnectionReestablishmentRequest msg)
 {
   NS_LOG_FUNCTION (this << rnti);
   GetUeManager (rnti)->RecvRrcConnectionReestablishmentRequest (msg);
 }
 
-void 
+void
 LteEnbRrc::DoRecvRrcConnectionReestablishmentComplete (uint16_t rnti, LteRrcSap::RrcConnectionReestablishmentComplete msg)
 {
   NS_LOG_FUNCTION (this << rnti);
   GetUeManager (rnti)->RecvRrcConnectionReestablishmentComplete (msg);
 }
 
-void 
+void
 LteEnbRrc::DoRecvMeasurementReport (uint16_t rnti, LteRrcSap::MeasurementReport msg)
 {
   NS_LOG_FUNCTION (this << rnti);
   GetUeManager (rnti)->RecvMeasurementReport (msg);
 }
 
-void 
+void
 LteEnbRrc::DoRecvRrcSecondaryCellInitialAccessSuccessful (uint16_t rnti, uint16_t mmWaveRnti, uint16_t mmWaveCellId)
 {
   NS_LOG_FUNCTION (this << rnti);
   GetUeManager (rnti)->RecvRrcSecondaryCellInitialAccessSuccessful (mmWaveRnti, mmWaveCellId);
 }
 
-void 
+void
 LteEnbRrc::DoDataRadioBearerSetupRequest (EpcEnbS1SapUser::DataRadioBearerSetupRequestParameters request)
 {
-  Ptr<UeManager> ueManager = GetUeManager (request.rnti);
-  ueManager->SetupDataRadioBearer (request.bearer, request.bearerId, request.gtpTeid, request.transportLayerAddress, request.iab);
+  NS_LOG_FUNCTION (this << request.rnti);
+  if (m_ueMap.find (request.rnti) != m_ueMap.end ())
+  {
+    Ptr<UeManager> ueManager = GetUeManager (request.rnti);
+    ueManager->SetupDataRadioBearer (request.bearer, request.bearerId, request.gtpTeid, request.transportLayerAddress, request.iab);
+  }
+  else
+  {
+    NS_LOG_UNCOND ("Requested to setup a bearer on an unknown UE");
+  }
 }
 
-void 
+void
 LteEnbRrc::DoPathSwitchRequestAcknowledge (EpcEnbS1SapUser::PathSwitchRequestAcknowledgeParameters params)
 {
   Ptr<UeManager> ueManager = GetUeManager (params.rnti);

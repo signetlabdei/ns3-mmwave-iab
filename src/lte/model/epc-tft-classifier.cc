@@ -52,11 +52,11 @@ void
 EpcTftClassifier::Add (Ptr<EpcTft> tft, uint32_t id)
 {
   NS_LOG_FUNCTION (this << tft);
-  
-  m_tftMap[id] = tft;  
-  
+
+  m_tftMap[id] = tft;
+
   // simple sanity check: there shouldn't be more than 16 bearers (hence TFTs) per UE
-  NS_ASSERT (m_tftMap.size () <= 16);
+  //NS_ASSERT (m_tftMap.size () <= 16);
 }
 
 void

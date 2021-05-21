@@ -151,7 +151,8 @@ LteUeRrc::LteUeRrc ()
     m_hasReceivedSib1 (false),
     m_hasReceivedSib2 (false),
     m_csgWhiteList (0),
-    m_ncRaStarted (true)
+    m_ncRaStarted (true),
+    m_iab (false)
 {
   NS_LOG_FUNCTION (this);
   m_cphySapUser = new MemberLteUeCphySapUser<LteUeRrc> (this);
@@ -409,6 +410,18 @@ LteUeRrc::GetCellId () const
 {
   NS_LOG_FUNCTION (this);
   return m_cellId;
+}
+
+void
+LteUeRrc::SetIab(bool iab)
+{
+  m_iab = iab;
+}
+
+bool
+LteUeRrc::GetIab()
+{
+  return m_iab;
 }
 
 void 
@@ -678,6 +691,7 @@ LteUeRrc::DoNotifyRandomAccessSuccessful ()
         LteRrcSap::RrcConnectionRequest msg;
         msg.ueIdentity = m_imsi;
         msg.isMc = m_isSecondaryRRC;
+        msg.isIab = m_iab;
         m_rrcSapUser->SendRrcConnectionRequest (msg); 
         m_connectionTimeout = Simulator::Schedule (m_t300,
                                                    &LteUeRrc::ConnectionTimeout,

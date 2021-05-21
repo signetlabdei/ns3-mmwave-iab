@@ -332,9 +332,9 @@ LteRlcAm::DoNotifyTxOpportunity (uint32_t bytes, uint8_t layer, uint8_t harqId)
     {
       // Stingy MAC: In general, we need more bytes.
       // There are a more restrictive test for each particular case
-      NS_LOG_LOGIC ("TxOpportunity (size = " << bytes << ") too small");
-      NS_ASSERT_MSG (false, "TxOpportunity (size = " << bytes << ") too small.\n"
-                         << "Your MAC scheduler is assigned too few resource blocks.");
+      NS_LOG_UNCOND ("TxOpportunity (size = " << bytes << ") too small");
+      //NS_ASSERT_MSG (false, "TxOpportunity (size = " << bytes << ") too small.\n"
+      //                   << "Your MAC scheduler is assigned too few resource blocks.");
       return;
     }
 
@@ -343,9 +343,9 @@ LteRlcAm::DoNotifyTxOpportunity (uint32_t bytes, uint8_t layer, uint8_t harqId)
       if (bytes < m_statusPduBufferSize)
         {
           // Stingy MAC: We need more bytes for the STATUS PDU
-          NS_LOG_LOGIC ("TxOpportunity (size = " << bytes << ") too small for the STATUS PDU (size = " << m_statusPduBufferSize << ")");
-          NS_ASSERT_MSG (false, "TxOpportunity (size = " << bytes << ") too small for the STATUS PDU (size = " << m_statusPduBufferSize << ")\n"
-                             << "Your MAC scheduler is assigned too few resource blocks.");
+          NS_LOG_UNCOND ("TxOpportunity (size = " << bytes << ") too small for the STATUS PDU (size = " << m_statusPduBufferSize << ")");
+          //NS_ASSERT_MSG (false, "TxOpportunity (size = " << bytes << ") too small for the STATUS PDU (size = " << m_statusPduBufferSize << ")\n"
+          //                   << "Your MAC scheduler is assigned too few resource blocks.");
           return;
         }
 
@@ -688,9 +688,9 @@ LteRlcAm::DoNotifyTxOpportunity (uint32_t bytes, uint8_t layer, uint8_t harqId)
       if (bytes < 7)
       {
         // Stingy MAC: We need more bytes for new DATA PDUs.
-        NS_LOG_LOGIC ("TxOpportunity (size = " << bytes << ") too small for DATA PDU");
-        NS_ASSERT_MSG (false, "TxOpportunity (size = " << bytes << ") too small for DATA PDU\n"
-                           << "Your MAC scheduler is assigned too few resource blocks.");
+        NS_LOG_UNCOND ("TxOpportunity (size = " << bytes << ") too small for DATA PDU");
+        //NS_ASSERT_MSG (false, "TxOpportunity (size = " << bytes << ") too small for DATA PDU\n"
+        //                   << "Your MAC scheduler is assigned too few resource blocks.");
         return;
       }
 
@@ -2363,6 +2363,7 @@ LteRlcAm::ReassembleAndDeliver (Ptr<Packet> packet)
   // Build list of SDUs
   uint8_t extensionBit;
   uint16_t lengthIndicator;
+  bool discard = false;
   do
     {
       extensionBit = rlcAmHeader.PopExtensionBit ();
@@ -2380,7 +2381,9 @@ LteRlcAm::ReassembleAndDeliver (Ptr<Packet> packet)
           // Check if there is enough data in the packet
           if ( lengthIndicator >= packet->GetSize () )
             {
-              NS_LOG_LOGIC ("INTERNAL ERROR: Not enough data in the packet (" << packet->GetSize () << "). Needed LI=" << lengthIndicator);
+              NS_LOG_UNCOND (Simulator::Now ().GetSeconds () << " INTERNAL ERROR: Not enough data in the packet (" << packet->GetSize () << "). Needed LI=" << lengthIndicator);
+              discard = true;
+              break;
               /// \todo What to do in this case? Discard packet and continue? Or Assert?
             }
 
@@ -2405,361 +2408,368 @@ LteRlcAm::ReassembleAndDeliver (Ptr<Packet> packet)
   NS_LOG_LOGIC ("m_sdusBuffer = " << m_sdusBuffer.size ());
 
   // Reassemble the list of SDUs (when there is no losses)
-  if (!expectedSnLost)
-    {
-      switch (m_reassemblingState)
-        {
-          case WAITING_S0_FULL:
-                  switch (framingInfo)
-                    {
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                              m_reassemblingState = WAITING_S0_FULL;
+  if (!discard)
+  {
+    if (!expectedSnLost)
+      {
+        switch (m_reassemblingState)
+          {
+            case WAITING_S0_FULL:
+                    switch (framingInfo)
+                      {
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                                m_reassemblingState = WAITING_S0_FULL;
 
-                              /**
-                              * Deliver one or multiple PDUs
-                              */
-                              for ( it = m_sdusBuffer.begin () ; it != m_sdusBuffer.end () ; it++ )
-                                {
-                                  TriggerReceivePdcpPdu (*it);
-                                }
-                              m_sdusBuffer.clear ();
-                      break;
-
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                              m_reassemblingState = WAITING_SI_SF;
-
-                              /**
-                              * Deliver full PDUs
-                              */
-                              while ( m_sdusBuffer.size () > 1 )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-
-                              /**
-                              * Keep S0
-                              */
-                              m_keepS0 = m_sdusBuffer.front ();
-                              m_sdusBuffer.pop_front ();
-                      break;
-
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                      default:
-                              /**
-                              * ERROR: Transition not possible
-                              */
-                              NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
-                      break;
-                    }
-          break;
-
-          case WAITING_SI_SF:
-                  switch (framingInfo)
-                    {
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                              m_reassemblingState = WAITING_S0_FULL;
-
-                              /**
-                              * Deliver (Kept)S0 + SN
-                              */
-                              m_keepS0->AddAtEnd (m_sdusBuffer.front ());
-                              m_sdusBuffer.pop_front ();
-                              TriggerReceivePdcpPdu (m_keepS0);
-
-                              /**
-                                * Deliver zero, one or multiple PDUs
+                                /**
+                                * Deliver one or multiple PDUs
                                 */
-                              while ( ! m_sdusBuffer.empty () )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
+                                for ( it = m_sdusBuffer.begin () ; it != m_sdusBuffer.end () ; it++ )
+                                  {
+                                    TriggerReceivePdcpPdu (*it);
+                                  }
+                                m_sdusBuffer.clear ();
+                        break;
 
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                              m_reassemblingState = WAITING_SI_SF;
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                                m_reassemblingState = WAITING_SI_SF;
 
-                              /**
-                              * Keep SI
-                              */
-                              if ( m_sdusBuffer.size () == 1 )
-                                {
-                                  m_keepS0->AddAtEnd (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-                              else // m_sdusBuffer.size () > 1
-                                {
-                                  /**
-                                  * Deliver (Kept)S0 + SN
-                                  */
-                                  m_keepS0->AddAtEnd (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                  TriggerReceivePdcpPdu (m_keepS0);
+                                /**
+                                * Deliver full PDUs
+                                */
+                                while ( m_sdusBuffer.size () > 1 )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
 
-                                  /**
-                                  * Deliver zero, one or multiple PDUs
-                                  */
-                                  while ( m_sdusBuffer.size () > 1 )
-                                    {
-                                      TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                      m_sdusBuffer.pop_front ();
-                                    }
+                                /**
+                                * Keep S0
+                                */
+                                m_keepS0 = m_sdusBuffer.front ();
+                                m_sdusBuffer.pop_front ();
+                        break;
 
-                                  /**
-                                  * Keep S0
-                                  */
-                                  m_keepS0 = m_sdusBuffer.front ();
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
-
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                      default:
-                              /**
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                        default:
+                                /**
                                 * ERROR: Transition not possible
                                 */
-                              NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
-                      break;
-                    }
-          break;
+                                NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
+                        break;
+                      }
+            break;
 
-          default:
-                NS_LOG_LOGIC ("INTERNAL ERROR: Wrong reassembling state = " << (uint32_t) m_reassemblingState);
-          break;
-        }
-    }
-  else // Reassemble the list of SDUs (when there are losses, i.e. the received SN is not the expected one)
-    {
-      switch (m_reassemblingState)
-        {
-          case WAITING_S0_FULL:
-                  switch (framingInfo)
-                    {
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                              m_reassemblingState = WAITING_S0_FULL;
+            case WAITING_SI_SF:
+                    switch (framingInfo)
+                      {
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                                m_reassemblingState = WAITING_S0_FULL;
 
-                              /**
-                               * Deliver one or multiple PDUs
-                               */
-                              for ( it = m_sdusBuffer.begin () ; it != m_sdusBuffer.end () ; it++ )
-                                {
-                                  TriggerReceivePdcpPdu (*it);
-                                }
-                              m_sdusBuffer.clear ();
-                      break;
+                                /**
+                                * Deliver (Kept)S0 + SN
+                                */
+                                m_keepS0->AddAtEnd (m_sdusBuffer.front ());
+                                m_sdusBuffer.pop_front ();
+                                TriggerReceivePdcpPdu (m_keepS0);
 
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                              m_reassemblingState = WAITING_SI_SF;
-
-                              /**
-                               * Deliver full PDUs
-                               */
-                              while ( m_sdusBuffer.size () > 1 )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-
-                              /**
-                               * Keep S0
-                               */
-                              m_keepS0 = m_sdusBuffer.front ();
-                              m_sdusBuffer.pop_front ();
-                      break;
-
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                              m_reassemblingState = WAITING_S0_FULL;
-
-                              /**
-                               * Discard SN
-                               */
-                              m_sdusBuffer.pop_front ();
-
-                              /**
-                               * Deliver zero, one or multiple PDUs
-                               */
-                              while ( ! m_sdusBuffer.empty () )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
-
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                              if ( m_sdusBuffer.size () == 1 )
-                                {
-                                  m_reassemblingState = WAITING_S0_FULL;
-                                }
-                              else
-                                {
-                                  m_reassemblingState = WAITING_SI_SF;
-                                }
-
-                              /**
-                               * Discard SI or SN
-                               */
-                              m_sdusBuffer.pop_front ();
-
-                              if ( m_sdusBuffer.size () > 0 )
-                                {
-                                  /**
+                                /**
                                   * Deliver zero, one or multiple PDUs
                                   */
-                                  while ( m_sdusBuffer.size () > 1 )
-                                    {
-                                      TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                      m_sdusBuffer.pop_front ();
-                                    }
+                                while ( ! m_sdusBuffer.empty () )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
 
-                                  /**
-                                  * Keep S0
-                                  */
-                                  m_keepS0 = m_sdusBuffer.front ();
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                                m_reassemblingState = WAITING_SI_SF;
 
-                      default:
-                              /**
-                               * ERROR: Transition not possible
-                               */
-                              NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
-                      break;
-                    }
-          break;
-
-          case WAITING_SI_SF:
-                  switch (framingInfo)
-                    {
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                              m_reassemblingState = WAITING_S0_FULL;
-
-                              /**
-                               * Discard S0
-                               */
-                              m_keepS0 = 0;
-
-                              /**
-                               * Deliver one or multiple PDUs
-                               */
-                              while ( ! m_sdusBuffer.empty () )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
-
-                      case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                              m_reassemblingState = WAITING_SI_SF;
-
-                              /**
-                               * Discard S0
-                               */
-                              m_keepS0 = 0;
-
-                              /**
-                               * Deliver zero, one or multiple PDUs
-                               */
-                              while ( m_sdusBuffer.size () > 1 )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-
-                              /**
-                               * Keep S0
-                               */
-                              m_keepS0 = m_sdusBuffer.front ();
-                              m_sdusBuffer.pop_front ();
-
-                      break;
-
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
-                              m_reassemblingState = WAITING_S0_FULL;
-
-                              /**
-                               * Discard S0
-                               */
-                              m_keepS0 = 0;
-
-                              /**
-                               * Discard SI or SN
-                               */
-                              m_sdusBuffer.pop_front ();
-
-                              /**
-                               * Deliver zero, one or multiple PDUs
-                               */
-                              while ( ! m_sdusBuffer.empty () )
-                                {
-                                  TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
-
-                      case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
-                              if ( m_sdusBuffer.size () == 1 )
-                                {
-                                  m_reassemblingState = WAITING_S0_FULL;
-                                }
-                              else
-                                {
-                                  m_reassemblingState = WAITING_SI_SF;
-                                }
-
-                              /**
-                               * Discard S0
-                               */
-                              m_keepS0 = 0;
-
-                              /**
-                               * Discard SI or SN
-                               */
-                              m_sdusBuffer.pop_front ();
-
-                              if ( m_sdusBuffer.size () > 0 )
-                                {
-                                  /**
-                                   * Deliver zero, one or multiple PDUs
-                                   */
-                                  while ( m_sdusBuffer.size () > 1 )
-                                    {
-                                      TriggerReceivePdcpPdu (m_sdusBuffer.front ());
-                                      m_sdusBuffer.pop_front ();
-                                    }
-
-                                  /**
-                                   * Keep S0
-                                   */
-                                  m_keepS0 = m_sdusBuffer.front ();
-                                  m_sdusBuffer.pop_front ();
-                                }
-                      break;
-
-                      default:
-                              /**
-                                * ERROR: Transition not possible
+                                /**
+                                * Keep SI
                                 */
-                              NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
-                      break;
-                    }
-          break;
+                                if ( m_sdusBuffer.size () == 1 )
+                                  {
+                                    m_keepS0->AddAtEnd (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                                else // m_sdusBuffer.size () > 1
+                                  {
+                                    /**
+                                    * Deliver (Kept)S0 + SN
+                                    */
+                                    m_keepS0->AddAtEnd (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                    TriggerReceivePdcpPdu (m_keepS0);
 
-          default:
-                NS_LOG_LOGIC ("INTERNAL ERROR: Wrong reassembling state = " << (uint32_t) m_reassemblingState);
-          break;
-        }
-    }
+                                    /**
+                                    * Deliver zero, one or multiple PDUs
+                                    */
+                                    while ( m_sdusBuffer.size () > 1 )
+                                      {
+                                        TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                        m_sdusBuffer.pop_front ();
+                                      }
+
+                                    /**
+                                    * Keep S0
+                                    */
+                                    m_keepS0 = m_sdusBuffer.front ();
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
+
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                        default:
+                                /**
+                                  * ERROR: Transition not possible
+                                  */
+                                NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
+                        break;
+                      }
+            break;
+
+            default:
+                  NS_LOG_LOGIC ("INTERNAL ERROR: Wrong reassembling state = " << (uint32_t) m_reassemblingState);
+            break;
+          }
+      }
+    else // Reassemble the list of SDUs (when there are losses, i.e. the received SN is not the expected one)
+      {
+        switch (m_reassemblingState)
+          {
+            case WAITING_S0_FULL:
+                    switch (framingInfo)
+                      {
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                                m_reassemblingState = WAITING_S0_FULL;
+
+                                /**
+                                 * Deliver one or multiple PDUs
+                                 */
+                                for ( it = m_sdusBuffer.begin () ; it != m_sdusBuffer.end () ; it++ )
+                                  {
+                                    TriggerReceivePdcpPdu (*it);
+                                  }
+                                m_sdusBuffer.clear ();
+                        break;
+
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                                m_reassemblingState = WAITING_SI_SF;
+
+                                /**
+                                 * Deliver full PDUs
+                                 */
+                                while ( m_sdusBuffer.size () > 1 )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+
+                                /**
+                                 * Keep S0
+                                 */
+                                m_keepS0 = m_sdusBuffer.front ();
+                                m_sdusBuffer.pop_front ();
+                        break;
+
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                                m_reassemblingState = WAITING_S0_FULL;
+
+                                /**
+                                 * Discard SN
+                                 */
+                                m_sdusBuffer.pop_front ();
+
+                                /**
+                                 * Deliver zero, one or multiple PDUs
+                                 */
+                                while ( ! m_sdusBuffer.empty () )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
+
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                                if ( m_sdusBuffer.size () == 1 )
+                                  {
+                                    m_reassemblingState = WAITING_S0_FULL;
+                                  }
+                                else
+                                  {
+                                    m_reassemblingState = WAITING_SI_SF;
+                                  }
+
+                                /**
+                                 * Discard SI or SN
+                                 */
+                                m_sdusBuffer.pop_front ();
+
+                                if ( m_sdusBuffer.size () > 0 )
+                                  {
+                                    /**
+                                    * Deliver zero, one or multiple PDUs
+                                    */
+                                    while ( m_sdusBuffer.size () > 1 )
+                                      {
+                                        TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                        m_sdusBuffer.pop_front ();
+                                      }
+
+                                    /**
+                                    * Keep S0
+                                    */
+                                    m_keepS0 = m_sdusBuffer.front ();
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
+
+                        default:
+                                /**
+                                 * ERROR: Transition not possible
+                                 */
+                                NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
+                        break;
+                      }
+            break;
+
+            case WAITING_SI_SF:
+                    switch (framingInfo)
+                      {
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                                m_reassemblingState = WAITING_S0_FULL;
+
+                                /**
+                                 * Discard S0
+                                 */
+                                m_keepS0 = 0;
+
+                                /**
+                                 * Deliver one or multiple PDUs
+                                 */
+                                while ( ! m_sdusBuffer.empty () )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
+
+                        case (LteRlcAmHeader::FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                                m_reassemblingState = WAITING_SI_SF;
+
+                                /**
+                                 * Discard S0
+                                 */
+                                m_keepS0 = 0;
+
+                                /**
+                                 * Deliver zero, one or multiple PDUs
+                                 */
+                                while ( m_sdusBuffer.size () > 1 )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+
+                                /**
+                                 * Keep S0
+                                 */
+                                m_keepS0 = m_sdusBuffer.front ();
+                                m_sdusBuffer.pop_front ();
+
+                        break;
+
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::LAST_BYTE):
+                                m_reassemblingState = WAITING_S0_FULL;
+
+                                /**
+                                 * Discard S0
+                                 */
+                                m_keepS0 = 0;
+
+                                /**
+                                 * Discard SI or SN
+                                 */
+                                m_sdusBuffer.pop_front ();
+
+                                /**
+                                 * Deliver zero, one or multiple PDUs
+                                 */
+                                while ( ! m_sdusBuffer.empty () )
+                                  {
+                                    TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
+
+                        case (LteRlcAmHeader::NO_FIRST_BYTE | LteRlcAmHeader::NO_LAST_BYTE):
+                                if ( m_sdusBuffer.size () == 1 )
+                                  {
+                                    m_reassemblingState = WAITING_S0_FULL;
+                                  }
+                                else
+                                  {
+                                    m_reassemblingState = WAITING_SI_SF;
+                                  }
+
+                                /**
+                                 * Discard S0
+                                 */
+                                m_keepS0 = 0;
+
+                                /**
+                                 * Discard SI or SN
+                                 */
+                                m_sdusBuffer.pop_front ();
+
+                                if ( m_sdusBuffer.size () > 0 )
+                                  {
+                                    /**
+                                     * Deliver zero, one or multiple PDUs
+                                     */
+                                    while ( m_sdusBuffer.size () > 1 )
+                                      {
+                                        TriggerReceivePdcpPdu (m_sdusBuffer.front ());
+                                        m_sdusBuffer.pop_front ();
+                                      }
+
+                                    /**
+                                     * Keep S0
+                                     */
+                                    m_keepS0 = m_sdusBuffer.front ();
+                                    m_sdusBuffer.pop_front ();
+                                  }
+                        break;
+
+                        default:
+                                /**
+                                  * ERROR: Transition not possible
+                                  */
+                                NS_LOG_LOGIC ("INTERNAL ERROR: Transition not possible. FI = " << (uint32_t) framingInfo);
+                        break;
+                      }
+            break;
+
+            default:
+                  NS_LOG_LOGIC ("INTERNAL ERROR: Wrong reassembling state = " << (uint32_t) m_reassemblingState);
+            break;
+          }
+      }
+  }
+  else
+  {
+    NS_LOG_UNCOND ("A packet has been discarded");
+  }
 
 }
 
 void
 LteRlcAm::TriggerReceivePdcpPdu(Ptr<Packet> p)
 {
-  if(!isMc) 
+  if(!isMc)
   {
     m_rlcSapUser->ReceivePdcpPdu(p);
   }
