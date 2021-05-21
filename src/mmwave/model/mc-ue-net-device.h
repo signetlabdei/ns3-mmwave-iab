@@ -1,6 +1,6 @@
 /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
 /* *
- * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab. 
+ * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,10 +16,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Michele Polese <michele.polese@gmail.com>
- * 
+ *
  */
 
- 
+
 
 #ifndef MC_UE_NET_DEVICE_H
 #define MC_UE_NET_DEVICE_H
@@ -54,14 +54,14 @@ class MmWaveEnbNetDevice;
 /**
   * \ingroup mmWave
   * This class represents a MC LTE + mmWave UE NetDevice, therefore
-  * it is a union of the UeNetDevice classes of those modules, 
+  * it is a union of the UeNetDevice classes of those modules,
   * up to some point
   */
 class McUeNetDevice : public NetDevice
 {
-public: 
-	// methods inherited from NetDevide. 
-	// TODO check if 2 (or more) Mac Addresses are needed or if the 
+public:
+	// methods inherited from NetDevide.
+	// TODO check if 2 (or more) Mac Addresses are needed or if the
 	// same can be used for the 2 (or more) eNB
 
 	static TypeId GetTypeId (void);
@@ -97,10 +97,10 @@ public:
     virtual bool Send (Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber);
 
     Ipv4Address GetPacketDestination (Ptr<Packet> packet);
-  
-  /** 
+
+  /**
    * receive a packet from the lower layers in order to forward it to the upper layers
-   * 
+   *
    * \param p the packet
    */
     void Receive (Ptr<Packet> p);
@@ -183,16 +183,16 @@ public:
 
 	Ptr<NetDevice> GetMmWaveTargetEnb (void);
 
-    void SetAntennaNum (uint8_t antennaNum);
+    void SetAntennaNum (uint16_t antennaNum);
 
-    uint8_t GetAntennaNum () const;
+    uint16_t GetAntennaNum () const;
 
 protected:
     NetDevice::ReceiveCallback m_rxCallback;
     virtual void DoInitialize (void);
 
 private:
-	
+
     Mac48Address m_macaddress;
     Ptr<Node> m_node;
     mutable uint16_t m_mtu;
@@ -230,13 +230,13 @@ private:
 	Ptr<MmWaveUeMac> m_mmWaveMac;
 	Ptr<LteUeRrc> m_mmWaveRrc; // TODO consider a lightweight RRC for the mmwave part
 	uint16_t m_mmWaveEarfcn; /**< MmWave carrier frequency */
-	uint8_t m_mmWaveAntennaNum;
+	uint16_t m_mmWaveAntennaNum;
 
 	// Common
 	Ptr<EpcUeNas> m_nas;
-	uint64_t m_imsi; 
-	uint32_t m_csgId; 
-	
+	uint64_t m_imsi;
+	uint32_t m_csgId;
+
 	// TODO this will be useless
 	Ptr<UniformRandomVariable> m_random;
 
@@ -244,5 +244,5 @@ private:
 
 } // namespace ns3
 
-#endif 
+#endif
 //MC_UE_NET_DEVICE_H

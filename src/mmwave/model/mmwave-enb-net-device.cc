@@ -2,23 +2,23 @@
  /*
  *   Copyright (c) 2011 Centre Tecnologic de Telecomunicacions de Catalunya (CTTC)
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *  
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
+ *
  *   Author: Marco Miozzo <marco.miozzo@cttc.es>
  *           Nicola Baldo  <nbaldo@cttc.es>
- *  
+ *
  *   Modified by: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 	  Sourjya Dutta <sdutta@nyu.edu>
  *        	 	  Russell Ford <russell.ford@nyu.edu>
@@ -87,8 +87,26 @@ TypeId MmWaveEnbNetDevice::GetTypeId()
 					   "Antenna number of the device",
 					   UintegerValue (64),
 					   MakeUintegerAccessor (&MmWaveEnbNetDevice::SetAntennaNum,
-											 &MmWaveEnbNetDevice::GetAntennaNum),
-					   MakeUintegerChecker<uint8_t> ())
+											             &MmWaveEnbNetDevice::GetAntennaNum),
+					   MakeUintegerChecker<uint16_t> ())
+	  .AddAttribute ("TxPower",
+						 "Transmission power in dBm",
+						 DoubleValue (30.0),
+						 MakeDoubleAccessor (&MmWaveEnbNetDevice::SetTxPower,
+																 &MmWaveEnbNetDevice::GetTxPower),
+						 MakeDoubleChecker<double> ())
+    .AddAttribute ("NoiseFigure",
+             "Loss (dB) in the Signal-to-Noise-Ratio due to non-idealities in the receiver."
+             " According to Wikipedia (http://en.wikipedia.org/wiki/Noise_figure), this is "
+             "\"the difference in decibels (dB) between"
+             " the noise output of the actual receiver to the noise output of an "
+             " ideal receiver with the same overall gain and bandwidth when the receivers "
+             " are connected to sources at the standard noise temperature T0.\" "
+             "In this model, we consider T0 = 290K.",
+             DoubleValue (5.0),
+             MakeDoubleAccessor (&MmWaveEnbNetDevice::SetNoiseFigure,
+                                 &MmWaveEnbNetDevice::GetNoiseFigure),
+             MakeDoubleChecker<double> ())
 	;
 
 	return tid;
@@ -115,6 +133,8 @@ MmWaveEnbNetDevice::DoInitialize(void)
 	NS_LOG_FUNCTION(this);
 	m_isConstructed = true;
 	UpdateConfig ();
+	m_phy->SetTxPower (m_txPower);
+	m_phy->SetNoiseFigure (m_noiseFigure);
 	m_phy->Initialize ();
 }
 
@@ -122,6 +142,7 @@ void
 MmWaveEnbNetDevice::DoDispose()
 {
 	NS_LOG_FUNCTION (this);
+	m_donorController->Dispose ();
 }
 
 Ptr<MmWaveEnbPhy>
@@ -192,14 +213,46 @@ MmWaveEnbNetDevice::GetRrc (void)
 }
 
 void
-MmWaveEnbNetDevice::SetAntennaNum (uint8_t antennaNum)
+MmWaveEnbNetDevice::SetAntennaNum (uint16_t antennaNum)
 {
+	NS_ASSERT_MSG (std::floor (std::sqrt(antennaNum)) == std::sqrt(antennaNum), "Only square antenna arrays are currently supported.");
 	m_antennaNum = antennaNum;
 }
-uint8_t
+
+uint16_t
 MmWaveEnbNetDevice::GetAntennaNum () const
 {
 	return m_antennaNum;
+}
+
+void 
+MmWaveEnbNetDevice::SetIabController (Ptr<MmWaveIabController> iabController)
+{
+	m_donorController = iabController;
+}
+
+Ptr<MmWaveIabController>
+MmWaveEnbNetDevice::GetIabController () const
+{
+	return m_donorController;
+}
+
+void
+MmWaveEnbNetDevice::RequestToSetIabBsrMapCallback (BsrReportCallback infoSendCallback)
+{
+	m_scheduler->SetIabBsrMapReportCallback (infoSendCallback);
+}
+
+void
+MmWaveEnbNetDevice::RequestToSetIabCqiMapCallback (CqiReportCallback infoSendCallback)
+{
+	m_scheduler->SetIabCqiMapReportCallback (infoSendCallback);
+}
+
+Ptr<MmWaveMacScheduler>
+MmWaveEnbNetDevice::GetMacScheduler() const
+{
+	return m_scheduler;
 }
 
 bool
@@ -237,6 +290,28 @@ MmWaveEnbNetDevice::UpdateConfig (void)
 		}
 	}
 
+	void
+	MmWaveEnbNetDevice::SetTxPower (double txPower)
+	{
+		m_txPower = txPower;
+	}
+
+	double
+	MmWaveEnbNetDevice::GetTxPower () const
+	{
+		return m_txPower;
+	}
+
+	void
+	MmWaveEnbNetDevice::SetNoiseFigure (double nf)
+	{
+		m_noiseFigure = nf;
+	}
+
+	double
+	MmWaveEnbNetDevice::GetNoiseFigure () const
+	{
+		return m_noiseFigure;
+	}
+
 }
-
-

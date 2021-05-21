@@ -53,7 +53,8 @@ public:
 	typedef std::vector < uint8_t > UlHarqProcessesTimer_t;
 	typedef std::vector < DciInfoElementTdma > UlHarqProcessesDciInfoList_t;
 	typedef std::vector < uint8_t > UlHarqProcessesStatus_t;
-
+	typedef std::pair < uint32_t, uint32_t > BufferSizeStatusSize_t;
+	// the StatusPduSize is included in the BufferSize
 
 	MmWaveFlexTtiMacScheduler ();
 
@@ -73,6 +74,10 @@ public:
 	virtual void ConfigureCommonParameters (Ptr<MmWavePhyMacCommon> config);
 
 	void SetIabScheduler(bool iabScheduler);
+
+	void SetIabBsrMapReportCallback (BsrReportCallback infoSendCallback);
+
+	void SetIabCqiMapReportCallback (CqiReportCallback infoSendCallback);
 
 	static bool SortRlcBufferReq (MmWaveMacSchedSapProvider::SchedDlRlcBufferReqParameters i, MmWaveMacSchedSapProvider::SchedDlRlcBufferReqParameters j);
 
@@ -96,8 +101,10 @@ private:
 			m_dlSymbols (0), m_ulSymbols (0),
 			m_dlSymbolsRetx (0), m_ulSymbolsRetx (0),
 			m_dlTbSize (0), m_ulTbSize (0),
+			m_minSizeToBeScheduled (0),
 			m_dlAllocDone (false), m_ulAllocDone (false), m_iab(false)
 		{
+
 		}
 
 		uint8_t		m_dlMcs;
@@ -112,6 +119,7 @@ private:
 		uint8_t		m_ulSymbolsRetx;
 		uint32_t	m_dlTbSize;
 		uint32_t	m_ulTbSize;
+		uint32_t	m_minSizeToBeScheduled;
 		std::vector <struct RlcPduInfo> m_rlcPduInfo;
 		bool			m_dlAllocDone;
 		bool			m_ulAllocDone;
@@ -210,6 +218,10 @@ private:
 	int UpdateBusySymbolsForIab(uint8_t sfNum, uint8_t symIdx, int symAvail);
 	// HARQ allocation: update the mask with busy resources
 	void UpdateResourceMask(uint8_t start, int numSymbols);
+	// remove UE symbols and give them to IAB
+	void UpdateIabAllocation(std::map <uint16_t, struct UeSchedInfo> &ueInfo);
+	// get symIdx and numFreeSymbols
+	std::pair<uint8_t, uint32_t> GetFreeSymbolsAndNextIndex(uint8_t symIdx, uint32_t numSymNeeded);
   /**
    * \brief Refresh HARQ processes according to the timers
    *
@@ -259,7 +271,7 @@ private:
 	/*
 	 * Map of UE's buffer status reports received
 	 */
-	std::map <uint16_t,uint32_t> m_ceBsrRxed;
+	std::map <uint16_t, BufferSizeStatusSize_t> m_ceBsrRxed;
 
 	uint16_t m_nextRnti;
 	uint64_t m_nextRntiDl;
@@ -351,6 +363,8 @@ private:
 	bool m_split;
 	SfIabAllocInfo m_busyResourcesSchedSubframe;
 	std::vector<SfIabAllocInfo> m_iabBusySubframeAllocation; // vector with IAB allocation info
+
+	double m_etaIab; // coefficient (0<=1)
 };
 
 }

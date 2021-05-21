@@ -129,9 +129,14 @@ MmWaveAmc::GetTypeId (void)
 	.SetParent<Object> ()
 	.AddConstructor<MmWaveAmc> ()
 	.AddAttribute ("Ber",
-				 "The requested BER in assigning MCS (default is 0.00005).",
+				 "The requested BER in assigning MCS with PiroEW2010 (default is 0.00005).",
 				 DoubleValue (0.00005),
 				 MakeDoubleAccessor (&MmWaveAmc::m_ber),
+				 MakeDoubleChecker<double> ())
+	.AddAttribute ("MiBer",
+				 "The requested BER in assigning MCS with Vienna (default is 0.1).",
+				 DoubleValue (0.1),
+				 MakeDoubleAccessor (&MmWaveAmc::m_miBer),
 				 MakeDoubleChecker<double> ())
 	.AddAttribute ("AmcModel",
 				"AMC model used to assign CQI",
@@ -277,7 +282,7 @@ MmWaveAmc::CreateCqiFeedbacks (const SpectrumValue& sinr, uint8_t rbgSize)
 				{
 					MmWaveHarqProcessInfoList_t harqInfoList;
 					tbStats = MmWaveMiErrorModel::GetTbDecodificationStats (sinr, rbgMap, GetTbSizeFromMcs (mcs, rbgSize/18) / 8, mcs, harqInfoList);
-					if (tbStats.tbler > 0.1)
+					if (tbStats.tbler > m_miBer)
 					{
 						break;
 					}
@@ -290,13 +295,13 @@ MmWaveAmc::CreateCqiFeedbacks (const SpectrumValue& sinr, uint8_t rbgSize)
 				}
 				NS_LOG_DEBUG (this << "\t RBG " << rbId << " MCS " << (uint16_t)mcs << " TBLER " << tbStats.tbler);
 				int rbgCqi = 0;
-				if ((tbStats.tbler > 0.1)&&(mcs==0))
+				if ((tbStats.tbler > m_miBer) && (mcs==0))
 				{
 					rbgCqi = 0;
 				}
 				else if (mcs == 28)
 				{
-					rbgCqi = 15; // all MCSs can guarantee the 10 % of BER
+					rbgCqi = 15; // all MCSs can guarantee the m_miBer target of BER
 				}
 				else
 				{
@@ -307,7 +312,7 @@ MmWaveAmc::CreateCqiFeedbacks (const SpectrumValue& sinr, uint8_t rbgSize)
 						++rbgCqi;
 					}
 				}
-				NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << "-> CQI " << rbgCqi);
+				NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << "-> CQI " << rbgCqi << " res target BER " << m_miBer);
 				// fill the cqi vector (per RB basis)
 				for (uint8_t j = 0; j < rbgSize; j++)
 				{
@@ -375,7 +380,7 @@ MmWaveAmc::CreateCqiFeedbacksTdma (const SpectrumValue& sinr, uint8_t numSym)
 			{
 				MmWaveHarqProcessInfoList_t harqInfoList;
 				tbStats = MmWaveMiErrorModel::GetTbDecodificationStats (sinr, chunkMap, GetTbSizeFromMcsSymbols (mcs, numSym) / 8, mcs, harqInfoList);
-				if (tbStats.tbler > 0.1)
+				if (tbStats.tbler > m_miBer)
 				{
 					break;
 				}
@@ -388,13 +393,13 @@ MmWaveAmc::CreateCqiFeedbacksTdma (const SpectrumValue& sinr, uint8_t numSym)
 			}
 			NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << " TBLER " << tbStats.tbler);
 			int chunkCqi = 0;
-			if ((tbStats.tbler > 0.1)&&(mcs==0))
+			if ((tbStats.tbler > m_miBer) && (mcs==0))
 			{
 				chunkCqi = 0;
 			}
 			else if (mcs == 28)
 			{
-				chunkCqi = 15; // all MCSs can guarantee the 10 % of BER
+				chunkCqi = 15; // all MCSs can guarantee the m_miBer targer of BER
 			}
 			else
 			{
@@ -405,7 +410,7 @@ MmWaveAmc::CreateCqiFeedbacksTdma (const SpectrumValue& sinr, uint8_t numSym)
 					++chunkCqi;
 				}
 			}
-			NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << "-> CQI " << chunkCqi);
+			NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << "-> CQI " << chunkCqi << " res target BER " << m_miBer);
 			cqi.push_back (chunkCqi);
 		}
 	}
@@ -485,7 +490,7 @@ MmWaveAmc::CreateCqiFeedbackWbTdma (const SpectrumValue& sinr, uint8_t numSym, u
 		{
 			MmWaveHarqProcessInfoList_t harqInfoList;
 			tbStats = MmWaveMiErrorModel::GetTbDecodificationStats (sinr, chunkMap, tbSize, mcs, harqInfoList);
-			if (tbStats.tbler > 0.1)
+			if (tbStats.tbler > m_miBer)
 			{
 				break;
 			}
@@ -500,7 +505,7 @@ MmWaveAmc::CreateCqiFeedbackWbTdma (const SpectrumValue& sinr, uint8_t numSym, u
 //		NS_LOG_UNCOND ("TBLER " << tbStatsFinal.tbler << " for chunks " << chunkMap.size () << " numSym "
 //		               << (unsigned)numSym << " tbSize " << tbSize << " mcs " << (unsigned)mcs << " sinr " << sinrAvg);
 //		NS_LOG_UNCOND (sinr);
-		if ((tbStats.tbler > 0.1)&&(mcs==0))
+		if ((tbStats.tbler > m_miBer) && (mcs==0))
 		{
 			cqi = 0;
 		}
@@ -517,7 +522,7 @@ MmWaveAmc::CreateCqiFeedbackWbTdma (const SpectrumValue& sinr, uint8_t numSym, u
 				++cqi;
 			}
 		}
-		NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << "-> CQI " << cqi);
+		NS_LOG_DEBUG (this << "\t MCS " << (uint16_t)mcs << "-> CQI " << cqi << " res target BER " << m_miBer);
 	}
 	return cqi;
 }

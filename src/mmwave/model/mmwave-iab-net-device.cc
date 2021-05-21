@@ -1,6 +1,6 @@
 /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
 /* *
- * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab. 
+ * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Michele Polese <michele.polese@gmail.com>
- * 
+ *
  */
 
 
@@ -111,7 +111,24 @@ TypeId MmWaveIabNetDevice::GetTypeId ()
 						PointerValue (),
 					    MakePointerAccessor (&MmWaveIabNetDevice::m_scheduler),
 					    MakePointerChecker <MmWaveMacScheduler> ())
-	;
+		.AddAttribute ("TxPower",
+		               "Transmission power in dBm",
+		               DoubleValue (33.0),
+		               MakeDoubleAccessor (&MmWaveIabNetDevice::SetTxPower,
+		                                   &MmWaveIabNetDevice::GetTxPower),
+		               MakeDoubleChecker<double> ())
+	 .AddAttribute ("NoiseFigure",
+               "Loss (dB) in the Signal-to-Noise-Ratio due to non-idealities in the receiver."
+               " According to Wikipedia (http://en.wikipedia.org/wiki/Noise_figure), this is "
+               "\"the difference in decibels (dB) between"
+               " the noise output of the actual receiver to the noise output of an "
+               " ideal receiver with the same overall gain and bandwidth when the receivers "
+               " are connected to sources at the standard noise temperature T0.\" "
+               "In this model, we consider T0 = 290K.",
+               DoubleValue (7.0),
+               MakeDoubleAccessor (&MmWaveIabNetDevice::SetNoiseFigure,
+                                   &MmWaveIabNetDevice::GetNoiseFigure),
+               MakeDoubleChecker<double> ())
 ;
 
 	return tid;
@@ -314,7 +331,11 @@ MmWaveIabNetDevice::DoInitialize (void)
 	NS_LOG_FUNCTION (this);
 	m_isConstructed = true;
 	UpdateConfig ();
+	m_backhaulPhy->SetTxPower (m_txPower);
+	m_backhaulPhy->SetNoiseFigure (m_noiseFigure);
 	m_backhaulPhy->DoInitialize ();
+	m_accessPhy->SetTxPower (m_txPower);
+	m_accessPhy->SetNoiseFigure (m_noiseFigure);
 	m_accessPhy->DoInitialize ();
 	if(m_backhaulRrc!=0)
 	{
@@ -377,74 +398,75 @@ MmWaveIabNetDevice::DoSend (Ptr<Packet> packet, const Address& dest, uint16_t pr
 	}
 }
 
-Ptr<EpcUeNas> 
+Ptr<EpcUeNas>
 MmWaveIabNetDevice::GetNas (void) const
 {
 	return m_nas;
 }
 
-uint64_t 
+uint64_t
 MmWaveIabNetDevice::GetImsi () const
 {
 	return m_imsi;
 }
 
 
-uint16_t 
+uint16_t
 MmWaveIabNetDevice::GetCellId () const
 {
 	return m_cellId;
 }
 
-Ptr<MmWaveUePhy> 
+Ptr<MmWaveUePhy>
 MmWaveIabNetDevice::GetBackhaulPhy (void) const
 {
 	return m_backhaulPhy;
 }
 
-Ptr<MmWaveUeMac> 
+Ptr<MmWaveUeMac>
 MmWaveIabNetDevice::GetBackhaulMac (void) const
 {
 	return m_backhaulMac;
 }
 
-Ptr<LteUeRrc> 
+Ptr<LteUeRrc>
 MmWaveIabNetDevice::GetBackhaulRrc () const
 {
 	return m_backhaulRrc;
 }
 
-void 
+void
 MmWaveIabNetDevice::SetBackhaulTargetEnb (Ptr<NetDevice> enb)
 {
 	m_donorEnb = enb;
 }
 
-Ptr<NetDevice> 
+Ptr<NetDevice>
 MmWaveIabNetDevice::GetBackhaulTargetEnb (void)
 {
 	return m_donorEnb;
 }
 
-void 
+void
 MmWaveIabNetDevice::SetBackhaulAntennaNum (uint16_t antennaNum)
 {
+	NS_ASSERT_MSG (std::floor (std::sqrt(antennaNum)) == std::sqrt(antennaNum), "Only square antenna arrays are currently supported.");
 	m_backhaulAntennaNum = antennaNum;
 }
 
-uint16_t 
+uint16_t
 MmWaveIabNetDevice::GetBackhaulAntennaNum () const
 {
 	return m_backhaulAntennaNum;
 }
 
-Ptr<MmWaveEnbPhy> 
+Ptr<MmWaveEnbPhy>
 MmWaveIabNetDevice::GetAccessPhy (void) const
 {
 	return m_accessPhy;
 }
 
-Ptr<MmWaveEnbMac> 
+Ptr<MmWaveEnbMac>
 MmWaveIabNetDevice::GetAccessMac (void) const
 {
 	return m_accessMac;
@@ -456,16 +478,57 @@ MmWaveIabNetDevice::GetAccessRrc () const
 	return m_accessRrc;
 }
 
-void 
+Ptr<MmWaveMacScheduler>
+MmWaveIabNetDevice::GetMacScheduler() const
+{
+	return m_scheduler;
+}
+
+void
+MmWaveIabNetDevice::RequestToSetIabBsrMapCallback (BsrReportCallback infoSendCallback)
+{
+	m_scheduler->SetIabBsrMapReportCallback (infoSendCallback);
+}
+
+void
+MmWaveIabNetDevice::RequestToSetIabCqiMapCallback (CqiReportCallback infoSendCallback)
+{
+	m_scheduler->SetIabCqiMapReportCallback (infoSendCallback);
+}
+
+void
 MmWaveIabNetDevice::SetAccessAntennaNum (uint16_t antennaNum)
 {
+	NS_ASSERT_MSG (std::floor (std::sqrt(antennaNum)) == std::sqrt(antennaNum), "Only square antenna arrays are currently supported.");
 	m_accessAntennaNum = antennaNum;
 }
 
-uint16_t 
+uint16_t
 MmWaveIabNetDevice::GetAccessAntennaNum () const
 {
 	return m_accessAntennaNum;
+}
+
+void
+MmWaveIabNetDevice::SetTxPower (double power)
+{
+	m_txPower = power;
+}
+double
+MmWaveIabNetDevice::GetTxPower () const
+{
+	return m_txPower;
+}
+
+void
+MmWaveIabNetDevice::SetNoiseFigure (double nf)
+{
+	m_noiseFigure = nf;
+}
+double
+MmWaveIabNetDevice::GetNoiseFigure () const
+{
+	return m_noiseFigure;
 }
 
 }

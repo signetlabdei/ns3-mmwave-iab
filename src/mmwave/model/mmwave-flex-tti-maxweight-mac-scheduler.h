@@ -54,6 +54,10 @@ public:
 
 	void SetIabScheduler(bool iabScheduler);
 
+	void SetIabBsrMapReportCallback (BsrReportCallback infoSendCallback);
+
+	void SetIabCqiMapReportCallback (CqiReportCallback infoSendCallback);
+
 	static bool SortRlcBufferReq (MmWaveMacSchedSapProvider::SchedDlRlcBufferReqParameters i, MmWaveMacSchedSapProvider::SchedDlRlcBufferReqParameters j);
 
 	void RefreshDlCqiMaps (void);
@@ -129,7 +133,7 @@ private:
 			m_maxUlBufSize (0), m_maxDlSymbols (0), m_maxUlSymbols (0),
 			m_dlSymbols (0), m_ulSymbols (0),
 			m_dlSymbolsRetx (0), m_ulSymbolsRetx (0),
-			m_dlTbSize (0), m_ulTbSize (0)
+			m_dlTbSize (0), m_ulTbSize (0), m_dlAllocDone(false), m_ulAllocDone(false)
 		{
 		}
 

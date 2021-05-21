@@ -48,7 +48,7 @@
 #include <ns3/epc-enb-application.h>
 #include <ns3/epc-iab-application.h>
 #include <ns3/epc-x2.h>
-
+#include <ns3/mmwave-rr-iab-mac-scheduler.h>
 #include <ns3/friis-spectrum-propagation-loss.h>
 #include <ns3/mmwave-rrc-protocol-ideal.h>
 #include <ns3/lte-spectrum-phy.h>
@@ -66,7 +66,10 @@ NS_LOG_COMPONENT_DEFINE ("MmWaveHelper");
 NS_OBJECT_ENSURE_REGISTERED (MmWaveHelper);
 
 MmWaveHelper::MmWaveHelper(void)
-	:m_imsiCounter (0),
+	:m_3gppChannelInitialized (false),
+	 m_noEnbPanels (3),
+	 m_noUePanels (2),
+	 m_imsiCounter (0),
 	 m_cellIdCounter (0),
 	 m_noTxAntenna (64),
 	 m_noRxAntenna (16),
@@ -324,6 +327,10 @@ MmWaveHelper::DoInitialize()
 	// TODO add mac & phy LTE stats
 	m_cnStats = 0;
 
+	m_associationChainMap.clear ();
+	m_distMap.clear ();
+	m_iabCellIdImsiMap.clear ();
+
 	NS_LOG_UNCOND("---- mmh UseIdealRrc " << m_useIdealRrc);
 	Object::DoInitialize();
 }
@@ -561,6 +568,7 @@ MmWaveHelper::InstallSingleIabDevice(Ptr<Node> n)
 
 	uint64_t imsi = ++m_imsiCounter;
 	uint16_t cellId = ++m_cellIdCounter;
+    m_iabCellIdImsiMap[cellId] = imsi;
 
 	NS_LOG_INFO("Install IAB device with backhaul IMSI " << imsi << " and access cellId " << cellId);
 
@@ -623,6 +631,9 @@ MmWaveHelper::InstallSingleIabDevice(Ptr<Node> n)
 	// TODOIAB antenna factory for IAB?
 	Ptr<AntennaModel> antenna = (m_ueAntennaModelFactory.Create ())->GetObject<AntennaModel> ();
 	NS_ASSERT_MSG (antenna, "error in creating the AntennaModel object");
+	DynamicCast<AntennaArrayModel> (antenna)->SetPlanesNumber(m_noEnbPanels);
+	DynamicCast<AntennaArrayModel> (antenna)->SetDeviceType(true);
+	DynamicCast<AntennaArrayModel> (antenna)->SetTotNoArrayElements(device->GetBackhaulAntennaNum ());
 	dlPhy->SetAntenna (antenna);
 	ulPhy->SetAntenna (antenna);
 
@@ -753,11 +764,8 @@ MmWaveHelper::InstallSingleIabDevice(Ptr<Node> n)
 	}
 
 	/* Antenna model */
-	// TODOIAB antenna factory for IAB access?
-	Ptr<AntennaModel> accessAntenna = (m_enbAntennaModelFactory.Create ())->GetObject<AntennaModel> ();
-	NS_ASSERT_MSG (accessAntenna, "error in creating the AntennaModel object");
-	accessDlPhy->SetAntenna (accessAntenna);
-	accessUlPhy->SetAntenna (accessAntenna);
+	accessDlPhy->SetAntenna (antenna);
+	accessUlPhy->SetAntenna (antenna);
 
 	Ptr<MmWaveEnbMac> accessMac = CreateObject<MmWaveEnbMac> ();
 	accessMac->SetConfigurationParameters (m_phyMacCommon);
@@ -1424,6 +1432,9 @@ MmWaveHelper::InstallSingleUeDevice (Ptr<Node> n)
 	NS_ASSERT_MSG (antenna, "error in creating the AntennaModel object");
 	dlPhy->SetAntenna (antenna);
 	ulPhy->SetAntenna (antenna);
+	DynamicCast<AntennaArrayModel> (antenna)->SetPlanesNumber(m_noUePanels);
+	DynamicCast<AntennaArrayModel> (antenna)->SetDeviceType(true);
+	DynamicCast<AntennaArrayModel> (antenna)->SetTotNoArrayElements(device->GetAntennaNum ());
 
 	Ptr<LteUeRrc> rrc = CreateObject<LteUeRrc> ();
 	if (m_useIdealRrc)
@@ -1504,6 +1515,7 @@ MmWaveHelper::InstallSingleUeDevice (Ptr<Node> n)
 Ptr<NetDevice>
 MmWaveHelper::InstallSingleEnbDevice (Ptr<Node> n)
 {
+	Ptr<MmWaveEnbNetDevice> device = m_enbNetDeviceFactory.Create<MmWaveEnbNetDevice> ();
 	NS_ABORT_MSG_IF (m_cellIdCounter == 65535, "max num eNBs exceeded");
 	uint16_t cellId = ++m_cellIdCounter;
 
@@ -1575,6 +1587,9 @@ MmWaveHelper::InstallSingleEnbDevice (Ptr<Node> n)
 	NS_ASSERT_MSG (antenna, "error in creating the AntennaModel object");
 	dlPhy->SetAntenna (antenna);
 	ulPhy->SetAntenna (antenna);
+	DynamicCast<AntennaArrayModel> (antenna)->SetPlanesNumber(m_noEnbPanels);
+	DynamicCast<AntennaArrayModel> (antenna)->SetDeviceType(false);
+	DynamicCast<AntennaArrayModel> (antenna)->SetTotNoArrayElements(device->GetAntennaNum ());
 
 	Ptr<MmWaveEnbMac> mac = CreateObject<MmWaveEnbMac> ();
 	mac->SetConfigurationParameters (m_phyMacCommon);
@@ -1643,7 +1658,6 @@ MmWaveHelper::InstallSingleEnbDevice (Ptr<Node> n)
 	//ffrAlgorithm->SetLteFfrRrcSapUser (rrc->GetLteFfrRrcSapUser ());
 
 
-	Ptr<MmWaveEnbNetDevice> device = m_enbNetDeviceFactory.Create<MmWaveEnbNetDevice> ();
 	device->SetNode (n);
 	device->SetAttribute ("CellId", UintegerValue (cellId));
 	device->SetAttribute ("MmWaveEnbPhy", PointerValue (phy));
@@ -1910,7 +1924,8 @@ MmWaveHelper::AttachToClosestEnb (NetDeviceContainer ueDevices, NetDeviceContain
 	}
 	else if(m_channelModelType == "ns3::MmWave3gppChannel")
 	{
-		m_3gppChannel->Initial(ueDevices,enbDevices);
+		//m_3gppChannel->Initial(ueDevices,enbDevices);
+		NS_ASSERT (m_3gppChannelInitialized);
 	}
 
 	for (NetDeviceContainer::Iterator i = ueDevices.Begin(); i != ueDevices.End(); i++)
@@ -1918,6 +1933,20 @@ MmWaveHelper::AttachToClosestEnb (NetDeviceContainer ueDevices, NetDeviceContain
 		AttachToSingleClosestEnb(*i, enbDevices);
 	}
 
+}
+
+void
+MmWaveHelper::ChannelInitialization (NetDeviceContainer ueDevs, NetDeviceContainer enbDevs, NetDeviceContainer iabDevs)
+{
+	if(m_channelModelType == "ns3::MmWave3gppChannel")
+	{
+		m_3gppChannel->Initial (ueDevs, enbDevs, iabDevs);
+		m_3gppChannelInitialized = true;
+	}
+	else
+	{
+		NS_FATAL_ERROR ("Only MmWave3gppChannel is supported");
+	}
 }
 
 void
@@ -1939,7 +1968,8 @@ MmWaveHelper::AttachToClosestEnbWithDelay (NetDeviceContainer ueDevices, NetDevi
 	}
 	else if(m_channelModelType == "ns3::MmWave3gppChannel")
 	{
-		m_3gppChannel->Initial(ueDevices,enbDevices);
+		//m_3gppChannel->Initial(ueDevices,enbDevices);
+		NS_ASSERT (m_3gppChannelInitialized);
 	}
 
 	for (NetDeviceContainer::Iterator i = ueDevices.Begin(); i != ueDevices.End(); i++)
@@ -1973,7 +2003,8 @@ MmWaveHelper::AttachToClosestEnb (NetDeviceContainer ueDevices, NetDeviceContain
 	}
 	else if(m_channelModelType == "ns3::MmWave3gppChannel")
 	{
-		m_3gppChannel->Initial(ueDevices,mmWaveEnbDevices);
+		//m_3gppChannel->Initial(ueDevices,mmWaveEnbDevices);
+		NS_ASSERT (m_3gppChannelInitialized);
 	}
 }
 
@@ -1998,7 +2029,8 @@ MmWaveHelper::AttachIrToClosestEnb (NetDeviceContainer ueDevices, NetDeviceConta
 	}
 	else if(m_channelModelType == "ns3::MmWave3gppChannel")
 	{
-		m_3gppChannel->Initial(ueDevices,mmWaveEnbDevices);
+		//m_3gppChannel->Initial(ueDevices,mmWaveEnbDevices);
+		NS_ASSERT (m_3gppChannelInitialized);
 	}
 
 	for (NetDeviceContainer::Iterator i = ueDevices.Begin(); i != ueDevices.End(); i++)
@@ -2012,13 +2044,28 @@ MmWaveHelper::AttachIabToClosestEnb (NetDeviceContainer iabDevices, NetDeviceCon
 {
 	NS_LOG_FUNCTION(this);
 
-	for (NetDeviceContainer::Iterator i = iabDevices.Begin(); i != iabDevices.End(); i++)
+	std::map<Ptr<NetDevice>, bool> attachedDevMap;
+	attachedDevMap.clear ();
+	m_associationChainMap.clear ();
+	m_distMap.clear ();
+
+	// Initialize dist and association maps
+	for (auto devIt = iabDevices.Begin (); devIt != iabDevices.End (); devIt++)
+	{
+		attachedDevMap.insert (std::make_pair((*devIt), false));
+		uint16_t cellId = DynamicCast<MmWaveIabNetDevice>(*devIt)->GetCellId ();
+		NS_ASSERT (cellId != 0);
+		DepthDistPair ddPair = std::make_pair (0, 0);
+		m_distMap[cellId] = ddPair;
+	}
+
+	for (auto i = iabDevices.Begin(); i != iabDevices.End(); i++)
 	{
 		NetDeviceContainer tmpContainer;
 		tmpContainer.Add(enbDevices);
 
 		// create a NetDeviceContainer with all the other iabDevices
-		for (NetDeviceContainer::Iterator j = iabDevices.Begin(); j != iabDevices.End(); j++)
+		for (auto j = iabDevices.Begin(); j != iabDevices.End(); j++)
 		{
 			if(i != j)
 			{
@@ -2028,13 +2075,32 @@ MmWaveHelper::AttachIabToClosestEnb (NetDeviceContainer iabDevices, NetDeviceCon
 
 		if(m_channelModelType == "ns3::MmWave3gppChannel")
 		{
-			m_3gppChannel->Initial(*i,tmpContainer);
+			//m_3gppChannel->Initial(*i,tmpContainer);
+			NS_ASSERT (m_3gppChannelInitialized);
 		}
 		else
 		{
 			NS_FATAL_ERROR("No support for other channels");
 		}
-		AttachIabToClosestEnb(*i, tmpContainer);
+		Ptr<NetDevice> attachedDev = AttachIabToClosestEnb(*i, tmpContainer);
+		// Update map of attached devs
+		attachedDevMap.find (*i)->second = true;
+		// Update parent child map
+		uint16_t childCellId = DynamicCast<MmWaveIabNetDevice> (*i)->GetCellId ();
+		uint16_t parentCellId {};
+		if(DynamicCast<MmWaveEnbNetDevice>(attachedDev))
+		{
+			parentCellId = DynamicCast<MmWaveEnbNetDevice>(attachedDev)->GetCellId();
+		}
+		else
+		{
+			parentCellId = DynamicCast<MmWaveIabNetDevice>(attachedDev)->GetCellId();
+		}
+
+		m_associationChainMap[childCellId] = parentCellId;
+		// Update dist map
+		UpdateDistDepth (attachedDev, *i, attachedDevMap);
+
 	}
 }
 
@@ -2050,7 +2116,8 @@ MmWaveHelper::AttachIabToSelectedClosestEnb (NetDeviceContainer iabDevices, NetD
 
 		if(m_channelModelType == "ns3::MmWave3gppChannel")
 		{
-			m_3gppChannel->Initial(*i,tmpContainer);
+			//m_3gppChannel->Initial(*i,tmpContainer);
+			NS_ASSERT (m_3gppChannelInitialized);
 		}
 		else
 		{
@@ -2058,6 +2125,123 @@ MmWaveHelper::AttachIabToSelectedClosestEnb (NetDeviceContainer iabDevices, NetD
 		}
 
 		AttachIabToClosestEnb(*i, selectedDevices);
+	}
+}
+
+std::vector<uint16_t>
+MmWaveHelper::GetChildrenCellIdListFromAssociationMap(uint16_t parentCellId)
+{
+	std::vector<uint16_t> childrenList;
+	for (std::map<uint16_t, uint16_t>::iterator assocIter = m_associationChainMap.begin();
+		assocIter != m_associationChainMap.end(); ++assocIter)
+	{
+		if(assocIter->second == parentCellId)
+		{
+			childrenList.push_back(assocIter->first);
+		}
+	}
+	return childrenList;
+}
+
+void
+MmWaveHelper::UpdateDistDepth(Ptr<NetDevice> attachedDev, Ptr<NetDevice> nextDev, std::map< Ptr<NetDevice>, bool > attachedDevMap)
+{
+	std::map< Ptr<NetDevice>, bool>::iterator nextDevMapIter = attachedDevMap.find(attachedDev);
+	// update dist or depth
+
+	// get the cellId of this device
+	uint16_t thisCellId = 0;
+ 	if(DynamicCast<MmWaveEnbNetDevice>(nextDev))
+	{
+		thisCellId = DynamicCast<MmWaveEnbNetDevice>(nextDev)->GetCellId();
+	}
+	else
+	{
+		thisCellId = DynamicCast<MmWaveIabNetDevice>(nextDev)->GetCellId();
+	}
+
+	// get the cellId of the parent
+	uint16_t parentCellId = 0;
+	if(DynamicCast<MmWaveEnbNetDevice>(attachedDev))
+	{
+		parentCellId = DynamicCast<MmWaveEnbNetDevice>(attachedDev)->GetCellId();
+	}
+	else
+	{
+		parentCellId = DynamicCast<MmWaveIabNetDevice>(attachedDev)->GetCellId();
+	}
+
+	if(DynamicCast<MmWaveEnbNetDevice>(attachedDev) || (nextDevMapIter != attachedDevMap.end() && nextDevMapIter->second))
+	{
+		// find the distance of the parent
+		uint32_t distParent = 0;
+		if(DynamicCast<MmWaveEnbNetDevice>(attachedDev))
+		{
+			NS_LOG_DEBUG("IAB device " << thisCellId << " has connected to a wired gNB -- update dist values");
+		}
+		else
+		{
+			distParent = m_distMap.find(parentCellId)->second.second;
+			NS_ABORT_MSG_IF(distParent == 0, "Dist of parent not updated!");
+			NS_LOG_DEBUG("IAB device " << thisCellId << " has connected to another IAB node at dist "
+				<< distParent << "from a wired gNB -- update dist values");
+		}
+
+		bool hasChildren = true;
+		while(hasChildren)
+		{
+			// initialize the distance
+			m_distMap.find(thisCellId)->second.second = distParent + 1;
+			distParent++;
+
+			auto childrenCellIdList = GetChildrenCellIdListFromAssociationMap(thisCellId);
+			NS_ABORT_MSG_IF(childrenCellIdList.size() > 1, "Multiple children " << childrenCellIdList.size());
+
+			if(childrenCellIdList.size() == 1)
+			{
+				thisCellId = childrenCellIdList.back();
+			}
+			else // 0
+			{
+				hasChildren = false; // exit the loop!
+			}
+		}
+
+
+		// reset the depth to 0, so that new branches won't be affected
+		NS_LOG_DEBUG("Reset previous depths");
+		for(std::map<uint16_t, DepthDistPair>::iterator distIter = m_distMap.begin();
+			distIter != m_distMap.end(); ++distIter)
+		{
+			distIter->second.first = 0;
+		}
+	}
+	else
+	{
+		NS_LOG_DEBUG("IAB device " << thisCellId << " has connected to an IAB device not yet connected -- update depth values");
+
+		uint32_t currentDepth = m_distMap.find(thisCellId)->second.first;
+		NS_LOG_DEBUG("Depth of this device " << currentDepth);
+		NS_ABORT_MSG_IF(m_distMap.find(parentCellId)->second.first != 0,
+			"Parent has already depth " << m_distMap.find(parentCellId)->second.first);
+		m_distMap.find(parentCellId)->second.first = currentDepth + 1;
+	}
+
+	for (std::map<uint16_t, DepthDistPair>::iterator distIter = m_distMap.begin();
+		distIter != m_distMap.end(); ++distIter)
+	{
+		uint16_t cellId = distIter->first;
+		if(m_associationChainMap.find(cellId) == m_associationChainMap.end())
+		{
+			NS_LOG_DEBUG("CellId " << cellId
+				<< " has no parent depth " << distIter->second.first << " dist " << distIter->second.second);
+		}
+		else
+		{
+			NS_LOG_DEBUG("CellId " << cellId
+				<< " has parent " << m_associationChainMap.find(cellId)->second
+				<< " depth " << distIter->second.first << " dist " << distIter->second.second);
+		}
 	}
 }
 
@@ -2073,7 +2257,8 @@ MmWaveHelper::AttachIabToClosestWiredEnb (NetDeviceContainer iabDevices, NetDevi
 
 		if(m_channelModelType == "ns3::MmWave3gppChannel")
 		{
-			m_3gppChannel->Initial(*i,tmpContainer);
+			//m_3gppChannel->Initial(*i,tmpContainer);
+			NS_ASSERT (m_3gppChannelInitialized);
 		}
 		else
 		{
@@ -2084,7 +2269,7 @@ MmWaveHelper::AttachIabToClosestWiredEnb (NetDeviceContainer iabDevices, NetDevi
 	}
 }
 
-void
+Ptr<NetDevice> 
 MmWaveHelper::AttachIabToClosestEnb (Ptr<NetDevice> iabDevice, NetDeviceContainer enbDevices)
 {
 	NS_LOG_FUNCTION(this);
@@ -2152,6 +2337,7 @@ MmWaveHelper::AttachIabToClosestEnb (Ptr<NetDevice> iabDevice, NetDeviceContaine
 		mmWaveCellId = closestMmWaveIab->GetCellId ();
 		configParams = closestMmWaveIab->GetAccessPhy()->GetConfigurationParameters();
 		closestMmWaveIab->GetAccessMac ()->AssociateUeMAC (mmWaveIab->GetImsi ());
+		
 	}
 
 	NS_ASSERT_MSG(mmWaveCellId > 0, "CellId not valid");
@@ -2172,6 +2358,7 @@ MmWaveHelper::AttachIabToClosestEnb (Ptr<NetDevice> iabDevice, NetDeviceContaine
 	}
 
 	mmWaveIab->SetBackhaulTargetEnb (closestEnbDevice);
+	return closestEnbDevice;
 }
 
 void
@@ -2264,6 +2451,84 @@ MmWaveHelper::AttachToSingleClosestEnb (Ptr<NetDevice> ueDevice, NetDeviceContai
 	ueDevice->GetObject<MmWaveUeNetDevice> ()->SetTargetEnb (closestEnbDevice);
 	//}
 
+}
+
+std::multimap<uint32_t, IabChildParent> 
+MmWaveHelper::GenerateDepthChildParentImsiMap ()
+{
+	std::multimap<uint32_t, IabChildParent> sortedByDepthImsiMap {};	// This will hold the IAB nodes sorted by their depth in the network
+	uint64_t childImsi {}, parentImsi {};
+	uint32_t nodeDepth {};
+
+	// Create a map which will hold the childen and parent IMSis, sorted by the depth in the network
+	for (auto cellIdParentIt : m_associationChainMap)
+	{
+		nodeDepth = m_distMap.find(cellIdParentIt.first)->second.second;
+		childImsi = (m_iabCellIdImsiMap.find (cellIdParentIt.first))->second;
+		parentImsi = (m_iabCellIdImsiMap.find (cellIdParentIt.second))->second;
+		IabChildParent childParentImsi = IabChildParent (childImsi, parentImsi);
+		sortedByDepthImsiMap.insert (std::pair<uint64_t, IabChildParent> (nodeDepth, childParentImsi));
+	}
+
+	return sortedByDepthImsiMap;
+}
+
+void
+MmWaveHelper::ActivateDonorControllerIabSetup(NetDeviceContainer enbDevices, NetDeviceContainer iabDevices, 
+											  	NodeContainer enbNodes, NodeContainer iabNodes)
+{
+	NS_LOG_FUNCTION (this);
+	NS_LOG_DEBUG ("This function must be called AFTER the rest of the IAB setup has been completed!");
+	NS_LOG_UNCOND ("Starting central controller setup!");
+
+	// For now, supports just single donor. 
+	uint8_t enbDevCount{};
+	Ptr<MmWaveEnbNetDevice> donorIabNetDev;
+	for(NetDeviceContainer::Iterator genNetDevIt = enbDevices.Begin (); genNetDevIt != enbDevices.End(); ++genNetDevIt)
+  	{
+  		enbDevCount += 1;
+		donorIabNetDev = DynamicCast<MmWaveEnbNetDevice>(*genNetDevIt);
+  	}
+	// Enforce the aforementioned condition
+	NS_ASSERT (enbDevCount == 1);
+
+	// Let the donor scheduler access the respective node application
+	auto iabDonorNode = enbNodes.Begin();
+	Ptr<EpcEnbApplication> enbApp = (*iabDonorNode)->GetApplication (0)->GetObject<EpcEnbApplication> ();
+	Ptr<MmWaveRrIabMacScheduler> donorIabSched = DynamicCast<MmWaveRrIabMacScheduler>(donorIabNetDev->GetMacScheduler ());
+	donorIabSched->SetEnbApplication (enbApp);
+	donorIabSched->SetIabDonorScheduler (true);
+	
+	// Create the donor controller 
+	Ptr<MmWaveIabController> donorController = CreateObject<MmWaveIabController> ();
+	donorIabSched->SetDonorControllerPtr (donorController);
+	// Exchange the needed topology info
+	std::multimap<uint32_t, IabChildParent>  depthChildParentImsiMap {GenerateDepthChildParentImsiMap ()};
+	donorController->SetDepthChildParentImsiMap (depthChildParentImsiMap);
+	// Retrieve and set the min capacity estimate
+	donorController->SetIabWeightMinCapacity (donorIabSched->GetIabMinimumCapacityEstimate ());
+	donorIabNetDev->SetIabController (donorController);
+
+	// Let the IAB nodes schedulers access the respective node application and setup the various info exchange callbacks
+	BsrReportCallback rcvBsrCallback {donorIabNetDev->GetIabController ()->GetBsrRcvCallback ()};
+	CqiReportCallback rcvCqiCallback {donorIabNetDev->GetIabController ()->GetCqiRcvCallback ()};
+
+	for(NodeContainer::Iterator iabNodeit = iabNodes.Begin(); iabNodeit != iabNodes.End(); ++iabNodeit)
+	{
+		Ptr<EpcIabApplication> iabApp = (*iabNodeit)->GetApplication (0)->GetObject<EpcIabApplication> ();
+		Ptr<MmWaveIabNetDevice> netDev = DynamicCast<MmWaveIabNetDevice>((*iabNodeit)->GetDevice(0));
+		// Assumes MmWaveRrIabMacScheduler is used, as it is the only which supports the central controller! 
+		Ptr<MmWaveRrIabMacScheduler> iabSched = DynamicCast<MmWaveRrIabMacScheduler>(netDev->GetMacScheduler ());
+		iabSched->SetIabApplication (iabApp);
+		donorIabNetDev->GetIabController ()->AddSchedInfoRcvCallback (iabSched->GetSchedInfoRcvCallback ());
+		netDev->RequestToSetIabBsrMapCallback (rcvBsrCallback);
+		netDev->RequestToSetIabCqiMapCallback (rcvCqiCallback);
+	}
+	// Setup the various info exchange callbacks for the donor as well
+	donorIabNetDev->RequestToSetIabBsrMapCallback (rcvBsrCallback);
+	donorIabNetDev->RequestToSetIabCqiMapCallback (rcvCqiCallback);
+	donorIabNetDev->GetIabController ()->AddSchedInfoRcvCallback (donorIabSched->GetSchedInfoRcvCallback ());
+	NS_LOG_UNCOND ("IAB central controller setup completed!");
 }
 
 void
@@ -2787,4 +3052,3 @@ MmWaveHelper::GetMcStats (void)
 }
 
 }
-

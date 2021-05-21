@@ -142,7 +142,7 @@ struct DciInfoElementTdma
 	DciInfoElementTdma (uint16_t 	rnti, uint8_t format, uint8_t symStart, uint8_t numSym, uint8_t mcs,
 	                    uint32_t tbs, uint8_t ndi, uint8_t rv, uint8_t harqProc) :
 	                    	m_rnti (rnti), m_format (format), m_symStart (symStart), m_numSym (numSym), m_mcs (mcs),
-	                    	m_tbSize (tbs), m_ndi (ndi), m_rv (rv), m_harqProcess (harqProc)
+	                    	m_tbSize (tbs), m_ndi (ndi), m_rv (rv), m_harqProcess (harqProc), m_doNotScheduleStatusPduInThisDci(false)
 	{
 	}
 
@@ -155,6 +155,7 @@ struct DciInfoElementTdma
 	uint8_t		m_ndi;
 	uint8_t		m_rv;					// not used for UL DCI
 	uint8_t   m_harqProcess;
+	bool 		m_doNotScheduleStatusPduInThisDci;
 };
 
 struct TbAllocInfo
@@ -346,14 +347,14 @@ typedef std::vector<SlotAllocInfo::TddSlotType> TddSlotTypeList;
 struct DlCqiInfo
 {
   uint16_t  m_rnti;
-  uint8_t   m_ri;
+  uint8_t   m_ri = 0;
   enum DlCqiType
   {
     WB,SB
   } m_cqiType;
 	std::vector<uint8_t> m_rbCqi; // CQI for each Rsc Block, set to -1 if SINR < Threshold
 	uint8_t m_wbCqi; // Wide band CQI
-	uint8_t m_wbPmi;
+	uint8_t m_wbPmi = 0;
 };
 
 
@@ -376,6 +377,7 @@ struct MacCeValue
   uint8_t   m_phr;
   uint8_t   m_crnti;
   std::vector <uint8_t> m_bufferStatus;
+  uint8_t m_totalPduSize;
 };
 
 /**

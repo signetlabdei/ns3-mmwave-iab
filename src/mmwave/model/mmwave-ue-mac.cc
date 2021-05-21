@@ -318,7 +318,7 @@ MmWaveUeMac::DoTransmitPdu (LteMacSapProvider::TransmitPduParameters params)
 		if (it->second.m_size <
 				(params.pdu->GetSize() + it->second.m_macHeader.GetSerializedSize ()))
 		{
-			NS_FATAL_ERROR ("Maximum TB size exceeded");
+			NS_LOG_UNCOND ("Maximum TB size exceeded");
 		}
 
 		if (it->second.m_numRlcPdu <= 1)
@@ -401,6 +401,7 @@ MmWaveUeMac::SendReportBufferStatus (void)
   // BSR is reported for each LCG
   std::map <uint8_t, LteMacSapProvider::ReportBufferStatusParameters>::iterator it;
   std::vector<uint32_t> queue (4, 0); // one value per each of the 4 LCGs, initialized to 0
+  uint32_t totalStatusPduSize = 0;
   for (it = m_ulBsrReceived.begin (); it != m_ulBsrReceived.end (); it++)
     {
       uint8_t lcid = it->first;
@@ -416,6 +417,10 @@ MmWaveUeMac::SendReportBufferStatus (void)
                      "BSR should not be used for LCID 0");
       	uint8_t lcg = lcInfoMapIt->second.lcConfig.logicalChannelGroup;
       	queue.at (lcg) += ((*it).second.txQueueSize + (*it).second.retxQueueSize + (*it).second.statusPduSize);
+      	if((*it).second.statusPduSize > 0)
+      	{
+      		totalStatusPduSize += (*it).second.statusPduSize;
+      	} 
       }
       else
       {
@@ -429,6 +434,7 @@ MmWaveUeMac::SendReportBufferStatus (void)
   bsr.m_macCeValue.m_bufferStatus.push_back (BufferSizeLevelBsr::BufferSize2BsrId (queue.at (1)));
   bsr.m_macCeValue.m_bufferStatus.push_back (BufferSizeLevelBsr::BufferSize2BsrId (queue.at (2)));
   bsr.m_macCeValue.m_bufferStatus.push_back (BufferSizeLevelBsr::BufferSize2BsrId (queue.at (3)));
+  bsr.m_macCeValue.m_totalPduSize = BufferSizeLevelBsr::BufferSize2BsrId(totalStatusPduSize); 
 
   // create the feedback to eNB
   Ptr<MmWaveBsrMessage> msg = Create<MmWaveBsrMessage> ();
@@ -552,6 +558,10 @@ MmWaveUeMac::DoReceivePhyPdu (Ptr<Packet> p)
 					LteRlcSpecificLteMacSapUser* user = (LteRlcSpecificLteMacSapUser*)it->second.macSapUser;
 					user->ReceivePdu (rlcPdu);
 				}
+			}
+			else
+			{
+				NS_LOG_WARN("Packet with unknown LCID");
 			}
 		}
 	}
@@ -711,14 +721,21 @@ MmWaveUeMac::DoReceiveControlMessage  (Ptr<MmWaveControlMessage> msg)
 				std::map <uint8_t, LcInfo>::iterator lcIt;
 				uint32_t bytesPerActiveLc = dciInfoElem.m_tbSize / activeLcs;
 				bool statusPduPriority = false;
-				if ((statusPduMinSize != 0)&&(bytesPerActiveLc < statusPduMinSize))
+				if ( (statusPduMinSize != 0) && (bytesPerActiveLc < statusPduMinSize) )
 				{
 					// send only the status PDU which has highest priority
 					statusPduPriority = true;
-					NS_LOG_DEBUG(this << " Reduced resource -> send only Status, bytes " << statusPduMinSize);
-					if (dciInfoElem.m_tbSize < statusPduMinSize)
+					if(dciInfoElem.m_doNotScheduleStatusPduInThisDci)
 					{
-						NS_FATAL_ERROR ("Insufficient Tx Opportunity for sending a status message");
+						statusPduPriority = false; // TODOIAB this will probably trigger an error in the RLC
+					}
+					else
+					{
+						NS_LOG_DEBUG(this << " Reduced resource -> send only Status, bytes " << statusPduMinSize);
+						if (dciInfoElem.m_tbSize < statusPduMinSize)
+						{
+							NS_LOG_WARN ("Insufficient Tx Opportunity for sending a status message");
+						}
 					}
 				}
 				NS_LOG_LOGIC (this << " UE " << m_rnti << ": UL-CQI notified TxOpportunity of " << dciInfoElem.m_tbSize << " => " << bytesPerActiveLc << " bytes per active LC" << " statusPduMinSize " << statusPduMinSize);
@@ -759,7 +776,7 @@ MmWaveUeMac::DoReceiveControlMessage  (Ptr<MmWaveControlMessage> msg)
 							{
 								if ((*itBsr).second.statusPduSize>bytesForThisLc)
 								{
-									NS_FATAL_ERROR ("Insufficient Tx Opportunity for sending a status message");
+									NS_LOG_WARN ("Insufficient Tx Opportunity for sending a status message");
 								}
 							}
 

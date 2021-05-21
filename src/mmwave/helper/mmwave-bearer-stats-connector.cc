@@ -51,32 +51,6 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("MmWaveBearerStatsConnector");
 NS_OBJECT_ENSURE_REGISTERED (MmWaveBearerStatsConnector);
 
-/// Map each of UE Manager states to its string representation.
-static const std::string g_ueManagerStateName[UeManager::NUM_STATES] =
-{
-  "INITIAL_RANDOM_ACCESS",
-  "CONNECTION_SETUP",
-  "CONNECTION_REJECTED",
-  "CONNECTED_NORMALLY",
-  "CONNECTION_RECONFIGURATION",
-  "CONNECTION_REESTABLISHMENT",
-  "HANDOVER_PREPARATION",
-  "HANDOVER_JOINING",
-  "HANDOVER_PATH_SWITCH",
-  "HANDOVER_LEAVING",
-  "PREPARE_MC_CONNECTION_RECONFIGURATION",
-  "MC_CONNECTION_RECONFIGURATION"
-};
-
-/**
- * \param s The UE manager state.
- * \return The string representation of the given state.
- */
-static const std::string & ToString (UeManager::State s)
-{
-  return g_ueManagerStateName[s];
-}
-
 /**
   * Less than operator for CellIdRnti, because it is used as key in map
   */
@@ -104,6 +78,12 @@ struct McMmWaveBoundCallbackArgument : public SimpleRefCount<McMmWaveBoundCallba
 {
 public:
   Ptr<McStatsCalculator> stats;
+};
+
+struct RrcStateTraceCallbackArgument : public SimpleRefCount<RrcStateTraceCallbackArgument>
+{
+public:
+  Ptr<RrcStateTrace> stats;
 };
 
 /**
@@ -191,19 +171,13 @@ SwitchToMmWaveCallback (Ptr<McMmWaveBoundCallbackArgument> arg, std::string path
 }
 
 void
-DataRadioBearerCreatedConsumer (Ptr<OutputStreamWrapper> stream, uint64_t imsi, uint16_t cellId, uint16_t rnti)
+RegisterRrcEventCallback (Ptr<RrcStateTraceCallbackArgument> arg, std::string path, 
+    uint64_t imsi, uint16_t cellId, uint16_t rnti, UeManager::State oldState, UeManager::State newState)
 {
-  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << imsi << '\t' << rnti << '\t' << cellId << std::endl;
-}
+  NS_LOG_FUNCTION (path << rnti << cellId << imsi);
 
-void
-StateTransitionConsumer (Ptr<OutputStreamWrapper> stream, uint64_t imsi, uint16_t cellId, uint16_t rnti, UeManager::State oldState, UeManager::State newState)
-{
-  *stream->GetStream () << 
-      Simulator::Now ().GetSeconds () << "\t" << imsi << '\t' << rnti <<
-      '\t' << cellId << '\t' << ToString(oldState)  << '\t' << ToString(newState) << std::endl;
+  arg->stats->RegisterRrcEvent(imsi, cellId, rnti, oldState, newState);
 }
-
 
 MmWaveBearerStatsConnector::MmWaveBearerStatsConnector ()
   : m_connected (false),
@@ -321,6 +295,13 @@ void
 MmWaveBearerStatsConnector::EnableMcStats (Ptr<McStatsCalculator> mcStats)
 {
   m_mcStats = mcStats;
+  EnsureConnected();
+}
+
+void
+MmWaveBearerStatsConnector::EnableRrcStateTraceStats (Ptr<RrcStateTrace> rrcStats)
+{
+  m_rrcStats = rrcStats;
   EnsureConnected();
 }
 
@@ -645,29 +626,19 @@ MmWaveBearerStatsConnector::StoreUeManagerPath (std::string context, uint16_t ce
   key.rnti = rnti;
   m_ueManagerPathByCellIdRnti[key] = ueManagerPath.str ();
 
-  // we also register two traces
-  // drb setup traces
-  std::ostringstream ueManagerPathDrb;
-  ueManagerPathDrb << ueManagerPath.str() << "/DataRadioBearerCreated";
-  std::string path = ueManagerPathDrb.str();
-  Config::MatchContainer objects = Config::LookupMatches(path);
-  NS_LOG_UNCOND("num matches " << (uint32_t)objects.GetN() << " path " << path);
-  AsciiTraceHelper asciiTraceHelper;
-  std::string filePathDrb = "DataRadioBearerCreatedTrace.txt";
-  Ptr<OutputStreamWrapper> stream1 = asciiTraceHelper.CreateFileStream (filePathDrb, std::ios::app);
-  // *stream1->GetStream () << "Time" << "\t" << "IMSI" << '\t' << "RNTI" << '\t' << "CellID" << std::endl;
-  Config::ConnectWithoutContext (path, MakeBoundCallback(&DataRadioBearerCreatedConsumer, stream1));
-
-  // state transition trace
-  std::ostringstream ueManagerPathState; 
-  ueManagerPathState << ueManagerPath.str() << "/StateTransition";
-  std::string pathState = ueManagerPathState.str();
-  objects = Config::LookupMatches(pathState);
-  NS_LOG_UNCOND("num matches " << (uint32_t)objects.GetN() << " path " << pathState);
-  std::string filePathState = "StateTransitionTrace.txt";
-  Ptr<OutputStreamWrapper> stream2 = asciiTraceHelper.CreateFileStream (filePathState, std::ios::app);
-  // *stream2->GetStream () << "Time" << "\t" << "IMSI" << '\t' << "RNTI" << '\t' << "CellID" << '\t' << "old" << '\t' << "new" << std::endl;
-  Config::ConnectWithoutContext (pathState, MakeBoundCallback(&StateTransitionConsumer, stream2)); 
+  if(m_rrcStats)
+  {
+      Ptr<RrcStateTraceCallbackArgument> arg = Create<RrcStateTraceCallbackArgument> ();
+      arg->stats = m_rrcStats;
+      // connect traces
+      std::ostringstream ueManagerPathState; 
+      ueManagerPathState << ueManagerPath.str() << "/StateTransition";
+      std::string pathState = ueManagerPathState.str();
+      auto objects = Config::LookupMatches(pathState);
+      NS_LOG_UNCOND("num matches " << (uint32_t)objects.GetN() << " path " << pathState);
+      Config::Connect (pathState,
+           MakeBoundCallback (&RegisterRrcEventCallback, arg));    
+  }
 }
 
 void 

@@ -172,14 +172,15 @@ const unsigned MmWaveFlexTtiMacScheduler::m_rlcHdrSize = 3;
 const double MmWaveFlexTtiMacScheduler::m_berDl = 0.001;
 
 MmWaveFlexTtiMacScheduler::MmWaveFlexTtiMacScheduler ()
-: 	m_nextRnti (0),
-  	m_subframeNo (0),
-  	m_tbUid (0),
-  	m_macSchedSapUser (0),
+: m_nextRnti (0),
+  m_subframeNo (0),
+  m_tbUid (0),
+  m_macSchedSapUser (0),
 	m_macCschedSapUser (0),
 	m_maxSchedulingDelay (1),
 	m_iabScheduler (false),
-	m_split (true)
+	m_split (true),
+	m_etaIab (0)
 {
 	NS_LOG_FUNCTION (this);
 	m_macSchedSapProvider = new MmWaveFlexTtiMacSchedSapProvider (this);
@@ -268,6 +269,12 @@ MmWaveFlexTtiMacScheduler::GetTypeId (void)
 								 UintegerValue (6),
 								 MakeUintegerAccessor (&MmWaveFlexTtiMacScheduler::m_symPerSlot),
 								 MakeUintegerChecker<uint8_t> ())
+	.AddAttribute ("EtaIab",
+								"Balancing factor to assign more resources to IAB nodes",
+								DoubleValue(0.0),
+								MakeDoubleAccessor (&MmWaveFlexTtiMacScheduler::m_etaIab),
+								MakeDoubleChecker<double> (0.0, 1.0)
+								)
 		;
 
 	return tid;
@@ -289,6 +296,18 @@ void
 MmWaveFlexTtiMacScheduler::SetIabScheduler(bool iabScheduler)
 {
 	m_iabScheduler = iabScheduler;
+}
+
+void
+MmWaveFlexTtiMacScheduler::SetIabBsrMapReportCallback(BsrReportCallback infoSendCallback)
+{
+	NS_FATAL_ERROR ("This scheduler does not support central IAB controller yet!");
+}
+
+void 
+MmWaveFlexTtiMacScheduler::SetIabCqiMapReportCallback(CqiReportCallback infoSendCallback)
+{
+	NS_FATAL_ERROR ("This scheduler does not support central IAB controller yet!");
 }
 
 
@@ -351,8 +370,11 @@ MmWaveFlexTtiMacScheduler::DoIabBackhaulSchedNotify(const struct MmWaveUeMacCsch
 	if(currentInfo.m_sfnSf.m_frameNum == frame)
 	{
 		// another DCI has already been registered for this subframe
+		NS_LOG_DEBUG("This frame/subframe had already a DCI stored with mask " << PrintSubframeAllocationMask(currentInfo.m_symAllocationMask));
+		NS_LOG_DEBUG("The new mask starts from " << (int)info.m_dciInfoElementTdma.m_symStart << " to " 
+						<< (int) (info.m_dciInfoElementTdma.m_symStart + info.m_dciInfoElementTdma.m_numSym));
 		newInfo = currentInfo;
-		NS_LOG_DEBUG("This frame/subframe had already a DCI stored with mask " << PrintSubframeAllocationMask(newInfo.m_symAllocationMask));
+		//TODOIAB Check whether the two DCIs are different perhaps?
 			// TODOIAB plot relevant info
 			// , with m_dlSymStart " << 
 			// newInfo.m_dlSymStart << " m_dlNumSymAlloc " << newInfo.m_dlNumSymAlloc << " m_ulSymStart " <<
@@ -361,45 +383,18 @@ MmWaveFlexTtiMacScheduler::DoIabBackhaulSchedNotify(const struct MmWaveUeMacCsch
 	else
 	{
 		newInfo.m_sfnSf = info.m_sfnSf;
+		uint32_t firstAllocatedIdx = info.m_dciInfoElementTdma.m_symStart;
+		uint32_t nextFreeIdx = firstAllocatedIdx + info.m_dciInfoElementTdma.m_numSym;
+
+		// check if it overlaps with already busy regions
+		for(uint32_t index = firstAllocatedIdx; index < nextFreeIdx; index++)
+		{
+			NS_ASSERT_MSG(newInfo.m_symAllocationMask.at(index) == 0, "DCI signals that a symbol is scheduled for IAB, but it was already scheduled");
+			newInfo.m_symAllocationMask.at(index) = 1;
+		}	
 	}
-
-	uint32_t firstAllocatedIdx = info.m_dciInfoElementTdma.m_symStart;
-	uint32_t nextFreeIdx = firstAllocatedIdx + info.m_dciInfoElementTdma.m_numSym;
-
-	// check if it overlaps with already busy regions
-	for(uint32_t index = firstAllocatedIdx; index < nextFreeIdx; index++)
-	{
-		NS_ASSERT_MSG(newInfo.m_symAllocationMask.at(index) == 0, "DCI signals that a symbol is scheduled for IAB, but it was already scheduled");
-		newInfo.m_symAllocationMask.at(index) = 1;
-	}	
 	
 	NS_LOG_DEBUG("Mask " << PrintSubframeAllocationMask(newInfo.m_symAllocationMask));
-
-
-	// if(info.m_dciInfoElementTdma.m_format == DciInfoElementTdma::DL_dci)
-	// {
-	// 	// downlink DCI
-	// 	if(newInfo.m_dlSymStart != 0 || newInfo.m_dlNumSymAlloc > 0)
-	// 	{
-	// 		NS_FATAL_ERROR("Trying to overwrite DL information on a SfIabAllocInfo");
-	// 	}
-	// 	newInfo.m_dlSymStart = info.m_dciInfoElementTdma.m_symStart;
-	// 	newInfo.m_dlNumSymAlloc = info.m_dciInfoElementTdma.m_numSym;
-	// 	NS_LOG_DEBUG("DL Num symbols used " << (uint16_t)info.m_dciInfoElementTdma.m_numSym << " from symbol "
-	// 				<< (uint16_t)info.m_dciInfoElementTdma.m_symStart);
-	// }
-	// else
-	// {
-	// 	// uplink DCI
-	// 	if(newInfo.m_ulSymStart != 0 || newInfo.m_ulNumSymAlloc > 0)
-	// 	{
-	// 		NS_FATAL_ERROR("Trying to overwrite UL information on a SfIabAllocInfo");
-	// 	}
-	// 	newInfo.m_ulSymStart = info.m_dciInfoElementTdma.m_symStart;
-	// 	newInfo.m_ulNumSymAlloc = info.m_dciInfoElementTdma.m_numSym;
-	// 	NS_LOG_DEBUG("UL Num symbols used " << (uint16_t)info.m_dciInfoElementTdma.m_numSym << " from symbol "
-	// 				<< (uint16_t)info.m_dciInfoElementTdma.m_symStart);	
-	// }
 
 	m_iabBusySubframeAllocation.at(subframe) = newInfo;
 }
@@ -1166,7 +1161,7 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 
 						NS_LOG_LOGIC("RETX numSymNeeded " << numSymNeeded << " numFreeSymbols " 
 							<< numFreeSymbols << " tmpSymIdx " << (uint16_t)tmpSymIdx);
-						if(numFreeSymbols >= numSymNeeded && (int)(tmpSymIdx + numSymNeeded) < (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()))
+						if(numFreeSymbols >= numSymNeeded && (int)(tmpSymIdx + numSymNeeded - 1) < (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()))
 						{
 							NS_LOG_LOGIC("Found resources for DL HARQ RETX");
 							symAvail -= dciInfoReTx.m_numSym;
@@ -1180,7 +1175,7 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 							NS_LOG_LOGIC("After updating " << PrintSubframeAllocationMask(m_busyResourcesSchedSubframe.m_symAllocationMask));
 
 							// symIdx += dciInfoReTx.m_numSym;
-							NS_ASSERT (tmpSymIdx + dciInfoReTx.m_numSym < m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ());
+							NS_ASSERT ((int)(tmpSymIdx + dciInfoReTx.m_numSym - 1) < (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()));
 							dciInfoReTx.m_rv++;
 							dciInfoReTx.m_ndi = 0;
 							itHarq->second.at (harqId) = dciInfoReTx;
@@ -1271,7 +1266,7 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 					continue;
 				}
 
-				NS_LOG_DEBUG("Num sym needed " << dciInfoReTx.m_numSym << " symIdx " << (uint16_t)symIdx);
+				NS_LOG_DEBUG("Retx num sym needed " << dciInfoReTx.m_numSym << " symIdx " << (uint16_t)symIdx);
 				if (symAvail >= dciInfoReTx.m_numSym)
 				{
 					if(!CheckOverlapWithBusyResources(symIdx, dciInfoReTx.m_numSym)) // TODOIAB: check if it can be allocated later
@@ -1324,7 +1319,7 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 
 						NS_LOG_LOGIC("UL RETX numSymNeeded " << numSymNeeded << " numFreeSymbols " 
 							<< numFreeSymbols << " tmpSymIdx " << (uint16_t)tmpSymIdx);
-						if(numFreeSymbols >= numSymNeeded && (int)(tmpSymIdx + numSymNeeded) < (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()))
+						if(numFreeSymbols >= numSymNeeded && (int)(tmpSymIdx + numSymNeeded - 1) < (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()))
 						{
 							symAvail -= dciInfoReTx.m_numSym;
 							dciInfoReTx.m_symStart = tmpSymIdx;
@@ -1337,7 +1332,7 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 							NS_LOG_LOGIC("After updating " << PrintSubframeAllocationMask(m_busyResourcesSchedSubframe.m_symAllocationMask));
 
 							// symIdx += dciInfoReTx.m_numSym;
-							NS_ASSERT (tmpSymIdx + dciInfoReTx.m_numSym <= m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ());
+							NS_ASSERT ((int)(tmpSymIdx + dciInfoReTx.m_numSym - 1) <= (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()));
 							dciInfoReTx.m_rv++;
 							dciInfoReTx.m_ndi = 0;
 							itStat->second.at (harqId) = itStat->second.at (harqId) + 1;
@@ -1505,21 +1500,24 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 
 		// for (ceBsrIt = m_ceBsrRxed.begin (); ceBsrIt != m_ceBsrRxed.end (); ceBsrIt++)
 		// {
-			if (ceBsrIt.second > 0)  // UL buffer size > 0
+			if (std::get<0>(ceBsrIt.second) > 0)  // UL buffer size > 0
 			{
-				std::map <uint16_t, struct UlCqiMapElem>::iterator itCqi = m_ueUlCqi.find (ceBsrIt.first);
+				uint32_t bufferSize = std::get<0>(ceBsrIt.second);
+				uint32_t statusPduSize = std::get<1>(ceBsrIt.second); // this is included in the bufferSize
+				uint16_t rnti = ceBsrIt.first;
+				std::map <uint16_t, struct UlCqiMapElem>::iterator itCqi = m_ueUlCqi.find (rnti);
 				bool isIab = false;
-				if(m_rntiIabInfoMap.find(ceBsrIt.first) != m_rntiIabInfoMap.end())
+				if(m_rntiIabInfoMap.find(rnti) != m_rntiIabInfoMap.end())
 				{
-					isIab = m_rntiIabInfoMap.find(ceBsrIt.first)->second.first;
+					isIab = m_rntiIabInfoMap.find(rnti)->second.first;
 				}
-				NS_LOG_DEBUG(this << " ceBsrIt UE " << ceBsrIt.first << " bf size " << ceBsrIt.second << " iab " << isIab);
+				NS_LOG_DEBUG(this << " ceBsrIt UE " << rnti << " bf size " << bufferSize << " statusPduSize " << statusPduSize << " iab " << isIab);
 
 				int cqi = 0;
 				int mcs = 0;
 				if (itCqi == m_ueUlCqi.end ()) // no cqi info for this UE
 				{
-					NS_LOG_DEBUG (this << " UE " << ceBsrIt.first << " does not have UL-CQI");
+					NS_LOG_DEBUG (this << " UE " << rnti << " does not have UL-CQI");
 					cqi = 1;
 					mcs = 0;
 				}
@@ -1570,10 +1568,10 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 						continue;  // do not allocate UE in uplink
 					}
 				}
-				itUeInfo = ueInfo.find (ceBsrIt.first);
+				itUeInfo = ueInfo.find (rnti);
 				if (itUeInfo == ueInfo.end ())
 				{
-					itUeInfo = ueInfo.insert (std::pair<uint16_t, struct UeSchedInfo> (ceBsrIt.first, UeSchedInfo () )).first;
+					itUeInfo = ueInfo.insert (std::pair<uint16_t, struct UeSchedInfo> (rnti, UeSchedInfo () )).first;
 					
 					nFlowsUl++;
 					if(!isIab)
@@ -1608,7 +1606,8 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 				{
 					itUeInfo->second.m_ulMcs = mcs;//m_amc->GetMcsFromCqi (cqi);  // get MCS
 				}
-				itUeInfo->second.m_maxUlBufSize = ceBsrIt.second + m_rlcHdrSize + m_macHdrSize + 8;
+				itUeInfo->second.m_maxUlBufSize = bufferSize + m_rlcHdrSize + m_macHdrSize + 8;
+				itUeInfo->second.m_minSizeToBeScheduled = statusPduSize; // the status PDU cannot be split
 			}
 		}
 	}
@@ -1903,6 +1902,12 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 		}
 	}
 
+	if(m_etaIab > 0 && (nFlowsBackhaulDl > 0 || nFlowsBackhaulUl >0))
+	{
+		// weight more the IAB devs than the other UEs
+		UpdateIabAllocation(ueInfo);
+	}
+
 	m_nextRnti = itUeInfo->first;
 
 	NS_LOG_DEBUG(this << " m_nextRnti " << m_nextRnti);
@@ -1917,28 +1922,22 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 	do
 	{
 		UeSchedInfo &ueSchedInfo = itUeInfo->second;
-		if (ueSchedInfo.m_dlSymbols > 0)
+		if (ueSchedInfo.m_dlSymbols > 0 && symAvail > 0)
 		{
+			NS_LOG_INFO("num LC before allocation " << (uint32_t)ueSchedInfo.m_rlcPduInfo.size ());
 			std::vector<SlotAllocInfo> tmpSlotAllocVector;
 			int numSymNeeded = ueSchedInfo.m_dlSymbols;
 			int totalTbSize = 0;
 			NS_LOG_DEBUG("UE " << itUeInfo->first << " numSymNeeded " << numSymNeeded);
 			do
 			{
-				// if there is overlapping, split allocation
-				// get the number of symbols that could be allocated
-				int numFreeSymbols = GetNumFreeSymbols(symIdx, numSymNeeded); // this is equal to numSymNeeded if there is no overlap, otherwise smaller
-				if(numFreeSymbols == 0)
-				{
-					// symIdx is inside a busy interval, get the next free symIdx and retry
-					NS_LOG_DEBUG("symIdx is in a busy interval, get the first free symIdx and retry");
-					symIdx = GetFirstFreeSymbol(symIdx, 0); // get the next symIdx
-					NS_LOG_DEBUG("new symIdx " << (uint16_t)symIdx);
-					numFreeSymbols = GetNumFreeSymbols(symIdx, numSymNeeded);
-				}
+				auto symIdxNumFreeSymbols = GetFreeSymbolsAndNextIndex(symIdx, numSymNeeded);
+				int numFreeSymbols = std::get<1>(symIdxNumFreeSymbols);
+				symIdx = std::get<0>(symIdxNumFreeSymbols);
 				symAvail -= numFreeSymbols;
 				numSymNeeded -= numFreeSymbols;
-				NS_LOG_DEBUG("UE " << itUeInfo->first << " numSymNeeded " << numSymNeeded << " numFreeSymbols " << numFreeSymbols << " symAvail " << symAvail);
+				NS_LOG_DEBUG("UE " << itUeInfo->first << " numSymNeeded (after allocation) "
+					<< numSymNeeded << " numFreeSymbols " << numFreeSymbols << " symAvail " << symAvail);
 
 				// create the DCI
 				DciInfoElementTdma dci;
@@ -2095,38 +2094,126 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 		}
 
 		// UL DCI applies to subframe i+Tsched
-		if (ueSchedInfo.m_ulSymbols > 0)
+		if (ueSchedInfo.m_ulSymbols > 0 && symAvail > 0)
 		{
 			int numSymNeeded = ueSchedInfo.m_ulSymbols;
 			do
 			{
-				// if there is overlapping, split allocation
-				// get the number of symbols that could be allocated
-				NS_LOG_DEBUG("UE " << itUeInfo->first << " numSymNeeded " << numSymNeeded);
-				int numFreeSymbols = GetNumFreeSymbols(symIdx, numSymNeeded); // this is equal to numSymNeeded if there is no overlap, otherwise smaller
-				if(numFreeSymbols == 0)
+				int numFreeSymbols = 0;
+				uint32_t minTbSizeToBeScheduled = ueSchedInfo.m_minSizeToBeScheduled;
+				int minNumSymNeeded = 1;
+				bool useTmpSymIdx = false;
+				bool doNotScheduleStatusPduInThisDci = false;
+				uint8_t tmpSymIdx = symIdx;
+				// if the UE has to transmit a status PDU, then this cannot be split
+				// therefore check if there is the possibility of scheduling at least
+				// a continuous chunk with the status PDU
+				if (minTbSizeToBeScheduled > 0)
 				{
-					// symIdx is inside a busy interval, get the next free symIdx and retry
-					NS_LOG_DEBUG("symIdx is in a busy interval, get the first free symIdx and retry (UL)");
-					symIdx = GetFirstFreeSymbol(symIdx, 0); // get the next symIdx
-					NS_LOG_DEBUG("new symIdx " << (uint16_t)symIdx);
-					numFreeSymbols = GetNumFreeSymbols(symIdx, numSymNeeded);
-				}
+					// get the minimum number of symbols needed for this tb size, with the MCS of this UE
+					bool numSymFound = false;
+					while(!numSymFound)
+					{
+						uint32_t allocableTbSize = m_amc->GetTbSizeFromMcsSymbols (ueSchedInfo.m_ulMcs, minNumSymNeeded) / 8;
+						if(allocableTbSize > minTbSizeToBeScheduled)
+						{
+							numSymFound = true;
+							break;
+						}
+						else
+						{
+							minNumSymNeeded++;
+						}
+					}
+					NS_LOG_DEBUG("minTbSizeToBeScheduled " << minTbSizeToBeScheduled << " need " << minNumSymNeeded << " symbols, total needed " << numSymNeeded);
+			
+					// need to find a symbol from which at least numSymNeeded should fit
+					while(numFreeSymbols == 0 && tmpSymIdx < m_phyMacConfig->GetSymbolsPerSubframe()-1) 
+					{
+						numFreeSymbols = GetNumFreeSymbols(tmpSymIdx, minNumSymNeeded); // this is equal to minNumSymNeeded if there is no overlap, otherwise smaller
+						NS_LOG_DEBUG("numFreeSymbols " << numFreeSymbols << " at symbol " << (uint32_t)tmpSymIdx);
+						if(numFreeSymbols == 0)
+						{
+							// tmpSymIdx is inside a busy interval, get the next free symIdx and retry
+							NS_LOG_DEBUG("symIdx is in a busy interval, get the first free symIdx and retry");
+							tmpSymIdx = GetFirstFreeSymbol(tmpSymIdx, 0); // get the next symIdx
+							NS_LOG_DEBUG("new tmpSymIdx " << (uint16_t)tmpSymIdx);
+							numFreeSymbols = GetNumFreeSymbols(tmpSymIdx, minNumSymNeeded);
+						}
+						uint32_t allocableTbSize = m_amc->GetTbSizeFromMcsSymbols (ueSchedInfo.m_ulMcs, numFreeSymbols) / 8;
+						NS_LOG_DEBUG("UL TX with status PDU minTbSize needed " << minTbSizeToBeScheduled << " tb size available " 
+							<< allocableTbSize << " tmpSymIdx " << (uint16_t)tmpSymIdx << " numFreeSymbols " << numFreeSymbols 
+							<< " MCS " << (uint32_t)ueSchedInfo.m_ulMcs);
+						if((int)minNumSymNeeded > (int)numFreeSymbols)
+						{
+							numFreeSymbols = 0;
+							tmpSymIdx = GetFirstFreeSymbol(tmpSymIdx, minNumSymNeeded); // get the next symIdx
+							if((int)(tmpSymIdx + minNumSymNeeded) >  (int)m_phyMacConfig->GetSymbolsPerSubframe()-1)
+							{	
+								NS_LOG_DEBUG("No way to fit this status PDU in the available resources");
+								break;
+							}
+						}
+					}
 
+					if(numFreeSymbols >= minNumSymNeeded && 
+						(int)(tmpSymIdx + minNumSymNeeded - 1) < (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ()))
+					{
+						// check how many additional symbols can actually be allocated here
+						if (numSymNeeded > minNumSymNeeded)
+						{
+							numFreeSymbols = GetNumFreeSymbols(tmpSymIdx, numSymNeeded);
+						}
+						NS_LOG_DEBUG("UL TX numSymNeeded " << numSymNeeded << " numFreeSymbols " 
+							<< numFreeSymbols << " tmpSymIdx " << (uint16_t)tmpSymIdx);
+						if(tmpSymIdx != symIdx)
+						{
+							useTmpSymIdx = true;
+							NS_LOG_DEBUG("The status PDU can be allocated, not at symIdx " << (uint32_t)symIdx << " but at " << (uint32_t)tmpSymIdx);
+							UpdateResourceMask(tmpSymIdx, numFreeSymbols);
+							NS_LOG_DEBUG("After status PDU alloc " << PrintSubframeAllocationMask(m_busyResourcesSchedSubframe.m_symAllocationMask));
+						}
+
+					}	
+					else
+					{
+						NS_LOG_DEBUG("The status PDU cannot be allocated");
+						// we need to skip this UE... or signal that the status PDU cannot be scheduled
+						doNotScheduleStatusPduInThisDci = true;
+						// continue with the standard allocation
+						auto symIdxNumFreeSymbols = GetFreeSymbolsAndNextIndex(symIdx, numSymNeeded);
+						numFreeSymbols = std::get<1>(symIdxNumFreeSymbols);
+						symIdx = std::get<0>(symIdxNumFreeSymbols);
+					}
+				}
+				else // just find the first free spot
+				{
+					NS_LOG_DEBUG("No status PDU to be scheduled");
+					auto symIdxNumFreeSymbols = GetFreeSymbolsAndNextIndex(symIdx, numSymNeeded);
+					numFreeSymbols = std::get<1>(symIdxNumFreeSymbols);
+					symIdx = std::get<0>(symIdxNumFreeSymbols);
+				}
+				
 				symAvail -= numFreeSymbols;
 				numSymNeeded -= numFreeSymbols;
-				NS_LOG_DEBUG("UE " << itUeInfo->first << " numSymNeeded " << numSymNeeded << " numFreeSymbols " << numFreeSymbols << " symAvail " << symAvail);
+				NS_LOG_DEBUG("UE " << itUeInfo->first << " numSymNeeded (after allocation) " << numSymNeeded 
+					<< " numFreeSymbols " << numFreeSymbols << " symAvail " << symAvail);
 
 				DciInfoElementTdma dci;
 				dci.m_rnti = itUeInfo->first;
 				dci.m_format = 1;
 				dci.m_numSym = numFreeSymbols;
-				dci.m_symStart = symIdx;
-				symIdx = GetFirstFreeSymbol(symIdx, numFreeSymbols); // get the next free symbol
-				NS_LOG_LOGIC("Next symIdx " << (uint16_t)symIdx);
+				dci.m_symStart = useTmpSymIdx ? tmpSymIdx : symIdx;
+				if(!useTmpSymIdx)
+				{
+					symIdx = GetFirstFreeSymbol(symIdx, numFreeSymbols); // get the next free symbol
+				}
+				// if the allocation is done at tmpSymIdx, then this will return symIdx
+				NS_LOG_DEBUG("Next symIdx " << (uint16_t)symIdx);
 				dci.m_mcs = ueSchedInfo.m_ulMcs;
 				dci.m_ndi = 1;
 				dci.m_tbSize = m_amc->GetTbSizeFromMcsSymbols (dci.m_mcs, dci.m_numSym) / 8;
+				dci.m_doNotScheduleStatusPduInThisDci = doNotScheduleStatusPduInThisDci;
 
 				NS_ASSERT (symIdx <= m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols ());
 				dci.m_harqProcess = UpdateUlHarqProcessId (itUeInfo->first);
@@ -2193,6 +2280,217 @@ MmWaveFlexTtiMacScheduler::DoSchedTriggerReq (const struct MmWaveMacSchedSapProv
 	return;
 }
 
+std::pair<uint8_t, uint32_t>
+MmWaveFlexTtiMacScheduler::GetFreeSymbolsAndNextIndex(uint8_t symIdx, uint32_t numSymNeeded)
+{
+	// if there is overlapping, split allocation
+	// get the number of symbols that could be allocated
+	int numFreeSymbols = GetNumFreeSymbols(symIdx, numSymNeeded); // this is equal to numSymNeeded if there is no overlap, otherwise smaller
+	if(numFreeSymbols == 0)
+	{
+		// symIdx is inside a busy interval, get the next free symIdx and retry
+		NS_LOG_DEBUG("symIdx is in a busy interval, get the first free symIdx and retry");
+		symIdx = GetFirstFreeSymbol(symIdx, 0); // get the next symIdx
+		NS_LOG_DEBUG("new symIdx " << (uint16_t)symIdx);
+		numFreeSymbols = GetNumFreeSymbols(symIdx, numSymNeeded);
+	}
+	return std::make_pair(symIdx, numFreeSymbols);
+}
+
+void
+MmWaveFlexTtiMacScheduler::UpdateIabAllocation(std::map <uint16_t, struct UeSchedInfo> &ueInfo)
+{
+	// cycle through ueInfo and get the amount of symbols allocated to IABs or UEs
+	int numIabDlSymbols = 0;
+	int numIabUlSymbols = 0;
+	int numIabFlowsDlAllocated = 0;
+	int numIabFlowsUlAllocated = 0;
+	int numUeDlSymbols = 0;
+	int numUeUlSymbols = 0;
+	int numUeFlowsDlAllocated = 0;
+	int numUeFlowsUlAllocated = 0;
+	for(auto itUeInfo = ueInfo.begin(); itUeInfo != ueInfo.end(); ++itUeInfo)
+	{
+		if(itUeInfo->second.m_iab)
+		{
+			if(itUeInfo->second.m_dlSymbols > 0)
+			{
+				numIabDlSymbols += itUeInfo->second.m_dlSymbols;
+				numIabFlowsDlAllocated += 1;
+			}
+			if(itUeInfo->second.m_ulSymbols > 0)
+			{
+				numIabUlSymbols += itUeInfo->second.m_ulSymbols;
+				numIabFlowsUlAllocated += 1;
+			}
+
+		}
+		else
+		{
+			if(itUeInfo->second.m_dlSymbols > 0)
+			{
+				numUeDlSymbols += itUeInfo->second.m_dlSymbols;
+				numUeFlowsDlAllocated += 1;
+			}
+			if(itUeInfo->second.m_ulSymbols > 0)
+			{
+				numUeUlSymbols += itUeInfo->second.m_ulSymbols;
+				numUeFlowsUlAllocated += 1;
+			}
+		}
+	}
+
+	NS_LOG_DEBUG( 
+		"numIabDlSymbols " << numIabDlSymbols <<
+	 	" numIabUlSymbols " << numIabUlSymbols <<
+	 	" numIabFlowsDlAllocated " << numIabFlowsDlAllocated <<
+	 	" numIabFlowsUlAllocated " << numIabFlowsUlAllocated <<
+	 	" numUeDlSymbols " << numUeDlSymbols <<
+	 	" numUeUlSymbols " << numUeUlSymbols <<
+	 	" numUeFlowsDlAllocated " << numUeFlowsDlAllocated <<
+	 	" numUeFlowsUlAllocated " << numUeFlowsUlAllocated);
+
+	if(numIabFlowsDlAllocated > 0 && numUeFlowsDlAllocated > 0)
+	{
+		// remove UE DL symbols
+		int removeDlUeSymbols = std::floor(m_etaIab*numUeDlSymbols);
+		int removeDlUeSymbolsPerUser = std::floor((double)removeDlUeSymbols/numUeFlowsDlAllocated);
+		int totDlSymbolRemoved = numUeFlowsDlAllocated*removeDlUeSymbolsPerUser;
+		int addDlIabSymbols = std::floor(totDlSymbolRemoved/numIabFlowsDlAllocated);
+		int totDlSymbolsAdded = addDlIabSymbols*numIabFlowsDlAllocated;
+		int extra = 0;
+		if(totDlSymbolsAdded < totDlSymbolRemoved)
+		{
+			extra = totDlSymbolRemoved - totDlSymbolsAdded;
+		}
+
+		NS_LOG_DEBUG(
+		" removeDlUeSymbols " << removeDlUeSymbols <<
+		" removeDlUeSymbolsPerUser " << removeDlUeSymbolsPerUser <<
+		" totDlSymbolRemoved " << totDlSymbolRemoved <<
+		" addDlIabSymbols " << addDlIabSymbols <<
+		" totDlSymbolsAdded " << totDlSymbolsAdded <<
+		" extra " << extra
+			);
+
+		int actuallyAdded = 0;
+		int actuallyRemoved = 0;
+		int numIabFlowsWithSymbolIncrease = 0;
+		int numUeFlowsWithSymbolIncrease = 0;
+		if(removeDlUeSymbolsPerUser > 0 && addDlIabSymbols > 0)
+		{
+			// add the symbols to IAB nodes
+			auto itUeInfo = ueInfo.begin();
+			while(actuallyAdded < removeDlUeSymbols && numIabFlowsWithSymbolIncrease < numIabFlowsDlAllocated)
+			{
+				if(itUeInfo->second.m_iab && itUeInfo->second.m_rlcPduInfo.size() > 0)
+				{
+					int thisTimeAdded = 0;
+					int diff = 0;
+					while(actuallyAdded < removeDlUeSymbols && thisTimeAdded < addDlIabSymbols)
+					{
+						// add
+						itUeInfo->second.m_dlSymbols += 1;
+						actuallyAdded += 1;
+					}
+					if(thisTimeAdded > 0)
+					{					
+						if(itUeInfo->second.m_dlSymbols >= m_phyMacConfig->GetSymbolsPerSubframe()/2)
+						{
+							diff = m_phyMacConfig->GetSymbolsPerSubframe()/2 - itUeInfo->second.m_dlSymbols;
+							itUeInfo->second.m_dlSymbols = m_phyMacConfig->GetSymbolsPerSubframe()/2;
+							actuallyAdded -= diff;
+						}
+						numIabFlowsWithSymbolIncrease++;
+					}
+
+				}
+				++itUeInfo;
+				if(itUeInfo == ueInfo.end())
+				{
+					itUeInfo = ueInfo.begin();
+				}
+			}
+
+			int removeDlUeSymbolsPerUserUpdated = std::ceil((double)actuallyAdded/numUeFlowsDlAllocated);
+			NS_LOG_DEBUG(
+				"actuallyAdded " << actuallyAdded 
+				<< " toBeRemoved " << removeDlUeSymbolsPerUserUpdated
+				<< " numUeFlowsDlAllocated " << numUeFlowsDlAllocated);
+
+			while(actuallyRemoved < actuallyAdded && numUeFlowsWithSymbolIncrease < numUeFlowsDlAllocated)
+			{
+				//remove
+				if(!itUeInfo->second.m_iab && itUeInfo->second.m_rlcPduInfo.size() > 0)
+				{
+					if(itUeInfo->second.m_dlSymbols < removeDlUeSymbolsPerUserUpdated)
+					{
+						actuallyRemoved += itUeInfo->second.m_dlSymbols;
+						itUeInfo->second.m_dlSymbols = 0;
+						numUeFlowsWithSymbolIncrease++;
+					}
+					else
+					{
+						actuallyRemoved += removeDlUeSymbolsPerUserUpdated;
+						itUeInfo->second.m_dlSymbols -= removeDlUeSymbolsPerUserUpdated;
+						numUeFlowsWithSymbolIncrease++;
+					}
+					
+				}
+				++itUeInfo;
+				if(itUeInfo == ueInfo.end())
+				{
+					itUeInfo = ueInfo.begin();
+				}
+			}
+
+			// for(auto itUeInfo = ueInfo.begin(); itUeInfo != ueInfo.end(); ++itUeInfo)
+			// {
+			// 	if(itUeInfo->second.m_iab && itUeInfo->second.m_rlcPduInfo.size() > 0)
+			// 	{
+			// 		// add
+			// 		itUeInfo->second.m_dlSymbols += addDlIabSymbols;
+			// 		actuallyAdded += addDlIabSymbols;
+			// 		int diff = 0;
+			// 		if(itUeInfo->second.m_dlSymbols >= m_phyMacConfig->GetSymbolsPerSubframe()/2)
+			// 		{
+			// 			diff = m_phyMacConfig->GetSymbolsPerSubframe()/2 - itUeInfo->second.m_dlSymbols;
+			// 			itUeInfo->second.m_dlSymbols = m_phyMacConfig->GetSymbolsPerSubframe()/2;
+			// 			actuallyAdded -= diff;
+			// 		}
+			// 	}
+			// 	else
+			// 	{
+					
+			// 	}
+			// }
+
+			NS_LOG_DEBUG("actuallyRemoved " << actuallyRemoved << " actuallyAdded " << actuallyAdded);
+
+			if(actuallyRemoved < actuallyAdded)
+			{
+				NS_LOG_DEBUG("!!!!!!!!!!! warn");
+				auto itUeInfo = ueInfo.begin();
+				while(actuallyRemoved < actuallyAdded)
+				{	
+					if(itUeInfo->second.m_iab && itUeInfo->second.m_rlcPduInfo.size() > 0 && itUeInfo->second.m_dlSymbols > 0)
+					{
+						itUeInfo->second.m_dlSymbols--;
+						actuallyAdded--;
+					}
+					itUeInfo++;
+					if(itUeInfo == ueInfo.end())
+					{
+						itUeInfo = ueInfo.begin();
+					}
+				}
+			}
+		}
+		
+		NS_LOG_DEBUG("actuallyRemoved " << actuallyRemoved << " actuallyAdded " << actuallyAdded);
+	}
+}
+
 int
 MmWaveFlexTtiMacScheduler::GetNumFreeSymbols(uint8_t symIdx, int numSymNeeded)
 {
@@ -2200,7 +2498,7 @@ MmWaveFlexTtiMacScheduler::GetNumFreeSymbols(uint8_t symIdx, int numSymNeeded)
 
 	if(!m_iabScheduler || !m_busyResourcesSchedSubframe.m_valid)
 	{
-		return numSymNeeded;
+		return std::min(numSymNeeded, (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols () - symIdx));
 	}
 
 	int numFreeSymbols = 0;
@@ -2219,7 +2517,7 @@ MmWaveFlexTtiMacScheduler::GetNumFreeSymbols(uint8_t symIdx, int numSymNeeded)
 			break;
 		}
 	}
-	return numFreeSymbols;
+	return std::min(numSymNeeded, (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols () - symIdx));
 }
 
 void
@@ -2244,7 +2542,7 @@ MmWaveFlexTtiMacScheduler::GetFirstFreeSymbol(uint8_t symIdx, int numFreeSymbols
 
 	if(!m_iabScheduler || !m_busyResourcesSchedSubframe.m_valid)
 	{
-		return symIdx + numFreeSymbols;
+		return std::min(symIdx + numFreeSymbols, (int)(m_phyMacConfig->GetSymbolsPerSubframe () - m_phyMacConfig->GetUlCtrlSymbols () - 1));
 	}
 
 	int index;
@@ -2288,7 +2586,7 @@ MmWaveFlexTtiMacScheduler::DoSchedUlMacCtrlInfoReq (const struct MmWaveMacSchedS
 {
 	NS_LOG_FUNCTION (this);
 
-	std::map <uint16_t,uint32_t>::iterator it;
+	std::map <uint16_t, BufferSizeStatusSize_t>::iterator it;
 
 	for (unsigned int i = 0; i < params.m_macCeList.size (); i++)
 	{
@@ -2308,19 +2606,24 @@ MmWaveFlexTtiMacScheduler::DoSchedUlMacCtrlInfoReq (const struct MmWaveMacSchedS
 				buffer += BsrId2BufferSize (bsrId);
 			}
 
+			uint32_t statusPduSize = BsrId2BufferSize(
+				params.m_macCeList.at (i).m_macCeValue.m_totalPduSize);
+
 			uint16_t rnti = params.m_macCeList.at (i).m_rnti;
 			it = m_ceBsrRxed.find (rnti);
 			if (it == m_ceBsrRxed.end ())
 			{
 				// create the new entry
-				m_ceBsrRxed.insert ( std::pair<uint16_t, uint32_t > (rnti, buffer));
-				NS_LOG_DEBUG (this << " Insert RNTI " << rnti << " queue " << buffer);
+				BufferSizeStatusSize_t info = std::make_pair(buffer, statusPduSize);
+				m_ceBsrRxed.insert ( std::pair<uint16_t, BufferSizeStatusSize_t > (rnti, info));
+				NS_LOG_DEBUG (this << " Insert RNTI " << rnti << " queue " << buffer << " status " << statusPduSize);
 			}
 			else
 			{
 				// update the buffer size value
-				(*it).second = buffer;
-				NS_LOG_DEBUG (this << " Update RNTI " << rnti << " queue " << buffer);
+				BufferSizeStatusSize_t info = std::make_pair(buffer, statusPduSize);
+				(*it).second = info;
+				NS_LOG_DEBUG (this << " Insert RNTI " << rnti << " queue " << buffer << " status " << statusPduSize);
 			}
 		}
 	}
@@ -2469,24 +2772,32 @@ void
 MmWaveFlexTtiMacScheduler::UpdateUlRlcBufferInfo (uint16_t rnti, uint16_t size)
 {
 
-  size = size - 2; // remove the minimum RLC overhead
-  std::map <uint16_t,uint32_t>::iterator it = m_ceBsrRxed.find (rnti);
-  if (it != m_ceBsrRxed.end ())
-    {
-      NS_LOG_INFO (this << " Update UL RLC BSR UE " << rnti << " size " << size << " BSR " << (*it).second);
-      if ((*it).second >= size)
-        {
-          (*it).second -= size;
-        }
-      else
-        {
-          (*it).second = 0;
-        }
-    }
-  else
-    {
-      NS_LOG_ERROR (this << " Does not find BSR report info of UE " << rnti);
-    }
+	size = size - 2; // remove the minimum RLC overhead
+	auto it = m_ceBsrRxed.find (rnti);
+	if (it != m_ceBsrRxed.end ())
+	{
+		uint32_t bufferSize = std::get<0>((*it).second);
+		NS_LOG_INFO (this << " Update UL RLC BSR UE " << rnti << " size " 
+			<< size << " BSR " << bufferSize << " statusPduSize " << std::get<1>((*it).second));
+		if (bufferSize >= size)
+		{
+		  std::get<0>((*it).second) -= bufferSize;
+		  // the status PDU will be served first
+		  if (size >= std::get<1>((*it).second))
+		  {
+		  	std::get<1>((*it).second) = 0;
+		  }
+		}
+		else
+		{
+		  std::get<0>((*it).second) = 0;
+		  std::get<1>((*it).second) = 0;
+		}
+	}
+	else
+	{
+	  NS_LOG_ERROR (this << " Does not find BSR report info of UE " << rnti);
+	}
 
 }
 

@@ -61,6 +61,35 @@ private:
   std::vector<MmWaveChunkProcessorCallback> m_MmWaveChunkProcessorCallbacks;
 };
 
+
+/**
+ * A sink to be plugged to the callback of MmWaveChunkProcessor allowing
+ * to save and later retrieve the latest reported value 
+ * 
+ */
+class MmWaveSpectrumValueCatcher
+{
+public:
+
+  /** 
+   * function to be plugged to MmWaveChunkProcessor::AddCallback ()
+   * 
+   * \param value 
+   */
+  void ReportValue (const SpectrumValue& value);
+
+  /** 
+   * 
+   * 
+   * \return the latest value reported by the MmWaveChunkProcessor
+   */
+  Ptr<SpectrumValue> GetValue ();
+  
+private:
+  Ptr<SpectrumValue> m_value; ///< spectrum value
+};
+
+
 } // namespace ns3
 
 

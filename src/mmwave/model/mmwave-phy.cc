@@ -348,7 +348,15 @@ MmWavePhy::SetDlSfAllocInfo (SfAllocInfo sfAllocInfo)
 
 	m_schedulingDelay = delay;
 
-	m_sfAllocInfo[sfAllocInfo.m_sfnSf.m_sfNum] = sfAllocInfo;
+	if(m_schedulingDelay < 10)
+	{
+		m_sfAllocInfo[sfAllocInfo.m_sfnSf.m_sfNum] = sfAllocInfo;
+	}
+	else
+	{
+		NS_FATAL_ERROR("The scheduling delay must be smaller than 10");
+	}
+
 	//m_sfAllocInfoUpdated = true;
 }
 

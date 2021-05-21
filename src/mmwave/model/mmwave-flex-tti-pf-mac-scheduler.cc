@@ -383,6 +383,18 @@ MmWaveFlexTtiPfMacScheduler::SetIabScheduler(bool iabScheduler)
 	m_iabScheduler = iabScheduler;
 }
 
+void 
+MmWaveFlexTtiPfMacScheduler::SetIabBsrMapReportCallback(BsrReportCallback infoSendCallback)
+{
+	NS_FATAL_ERROR ("This scheduler does not support central IAB controller yet!");
+}
+
+void 
+MmWaveFlexTtiPfMacScheduler::SetIabCqiMapReportCallback(CqiReportCallback infoSendCallback)
+{
+	NS_FATAL_ERROR ("This scheduler does not support central IAB controller yet!");
+}
+
 void
 MmWaveFlexTtiPfMacScheduler::ConfigureCommonParameters (Ptr<MmWavePhyMacCommon> config)
 {

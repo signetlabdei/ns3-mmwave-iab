@@ -1,22 +1,22 @@
  /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
  /*
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *   Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab. 
- *  
+ *   Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab.
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
- *  
+ *
+ *
  *   Author: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 Sourjya Dutta <sdutta@nyu.edu>
  *        	 Russell Ford <russell.ford@nyu.edu>
@@ -211,7 +211,7 @@ MmWaveChannelRaytracing::Initial(NetDeviceContainer ueDevices, NetDeviceContaine
 	{
 		Ptr<MmWaveUeNetDevice> UeDev =
 						DynamicCast<MmWaveUeNetDevice> (*i);
-		if (UeDev != 0) 
+		if (UeDev != 0)
 		{
 			if (UeDev->GetTargetEnb ())
 			{
@@ -224,7 +224,7 @@ MmWaveChannelRaytracing::Initial(NetDeviceContainer ueDevices, NetDeviceContaine
 		{	// it may be a McUeNetDevice
 			Ptr<McUeNetDevice> mcUeDev =
 						DynamicCast<McUeNetDevice> (*i);
-			if (mcUeDev != 0) 
+			if (mcUeDev != 0)
 			{
 				if (mcUeDev->GetMmWaveTargetEnb ())
 				{
@@ -254,8 +254,8 @@ MmWaveChannelRaytracing::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> 
 	Ptr<MmWaveUeNetDevice> rxUe =
 					DynamicCast<MmWaveUeNetDevice> (rxDevice);
 
-	uint8_t txAntennaNum[2];
-	uint8_t rxAntennaNum[2];
+	uint16_t txAntennaNum[2];
+	uint16_t rxAntennaNum[2];
 
 	bool dl = true;
 
@@ -291,7 +291,7 @@ MmWaveChannelRaytracing::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> 
 			rxAntennaArray = DynamicCast<AntennaArrayModel> (
 						rxMcUe->GetMmWavePhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 		}
-	} 
+	}
 	else if (txEnb==0 && rxUe==0 )
 	{
 		NS_LOG_INFO ("this is uplink case");
@@ -304,7 +304,7 @@ MmWaveChannelRaytracing::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> 
 
 		if(txUe != 0)
 		{
-			NS_LOG_INFO ("this is uplink case");	
+			NS_LOG_INFO ("this is uplink case");
 			txAntennaNum[0] = sqrt (txUe->GetAntennaNum ());
 			txAntennaNum[1] = sqrt (txUe->GetAntennaNum ());
 			rxAntennaNum[0] = sqrt (rxEnb->GetAntennaNum ());
@@ -321,7 +321,7 @@ MmWaveChannelRaytracing::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> 
 
 			if(txMcUe != 0)
 			{
-				NS_LOG_INFO ("this is uplink case for MC device");	
+				NS_LOG_INFO ("this is uplink case for MC device");
 
 				txAntennaNum[0] = sqrt (txMcUe->GetAntennaNum ());
 				txAntennaNum[1] = sqrt (txMcUe->GetAntennaNum ());
@@ -507,7 +507,7 @@ MmWaveChannelRaytracing::CalcBeamformingVector(complex2DVector_t spatialMatrix, 
 
 
 complex2DVector_t
-MmWaveChannelRaytracing::GenSpatialMatrix (uint64_t traceIndex, uint8_t* antennaNum, bool bs) const
+MmWaveChannelRaytracing::GenSpatialMatrix (uint64_t traceIndex, uint16_t* antennaNum, bool bs) const
 {
 	complex2DVector_t spatialMatrix;
 	uint16_t pathNum = g_path.at (traceIndex);
@@ -535,16 +535,16 @@ MmWaveChannelRaytracing::GenSpatialMatrix (uint64_t traceIndex, uint8_t* antenna
 
 
 complexVector_t
-MmWaveChannelRaytracing::GenSinglePath (double hAngle, double vAngle, uint8_t* antennaNum) const
+MmWaveChannelRaytracing::GenSinglePath (double hAngle, double vAngle, uint16_t* antennaNum) const
 {
 	NS_LOG_FUNCTION (this);
 	complexVector_t singlePath;
 	uint16_t vSize = antennaNum[0];
 	uint16_t hSize = antennaNum[1];
 
-	for (int vIndex = 0; vIndex < vSize; vIndex++)
+	for (uint16_t vIndex = 0; vIndex < vSize; vIndex++)
 	{
-		for (int hIndex =0; hIndex < hSize; hIndex++)
+		for (uint16_t hIndex =0; hIndex < hSize; hIndex++)
 		{
 			double w = (-2)*M_PI*hIndex*m_antennaSeparation*cos(hAngle)
 										+ (-2)*M_PI*vIndex*m_antennaSeparation*cos(vAngle);
@@ -636,7 +636,7 @@ MmWaveChannelRaytracing::GetSystemBandwidth () const
 }
 
 
-Ptr<SpectrumValue> 
+Ptr<SpectrumValue>
 MmWaveChannelRaytracing::CalcRxPowerSpectralDensity(Ptr<const SpectrumValue> txPsd,
 	                                                   Ptr<const MobilityModel> a,
 	                                                   Ptr<const MobilityModel> b) const

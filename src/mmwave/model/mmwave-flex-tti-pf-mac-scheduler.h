@@ -54,6 +54,10 @@ public:
 
 	void SetIabScheduler(bool iabScheduler);
 
+	void SetIabBsrMapReportCallback (BsrReportCallback infoSendCallback);
+
+	void SetIabCqiMapReportCallback (CqiReportCallback infoSendCallback);
+
 	static bool SortRlcBufferReq (MmWaveMacSchedSapProvider::SchedDlRlcBufferReqParameters i, MmWaveMacSchedSapProvider::SchedDlRlcBufferReqParameters j);
 
 	void RefreshDlCqiMaps (void);

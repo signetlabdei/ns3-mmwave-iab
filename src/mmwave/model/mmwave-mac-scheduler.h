@@ -35,6 +35,7 @@
 #include "mmwave-phy-mac-common.h"
 #include "mmwave-mac-sched-sap.h"
 #include "mmwave-mac-csched-sap.h"
+#include "mmwave-iab-controller.h"
 #include <ns3/string.h>
 #include <ns3/math.h>
 #include <ns3/enum.h>
@@ -80,6 +81,10 @@ public:
 	virtual MmWaveUeMacCschedSapProvider* GetMmWaveUeMacCschedSapProvider () = 0;
 
 	virtual void SetIabScheduler(bool iabScheduler) = 0;
+
+	virtual void SetIabBsrMapReportCallback (BsrReportCallback infoSendCallback) = 0;
+
+	virtual void SetIabCqiMapReportCallback (CqiReportCallback infoSendCallback) = 0;
 
 protected:
 

@@ -1,21 +1,21 @@
  /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
  /*
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *  
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
- *  
+ *
+ *
  *   Author: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 Sourjya Dutta <sdutta@nyu.edu>
  *        	 Russell Ford <russell.ford@nyu.edu>
@@ -41,6 +41,7 @@
 #include "ns3/mmwave-3gpp-propagation-loss-model.h"
 #include <ns3/antenna-array-model.h>
 #include "ns3/mmwave-3gpp-buildings-propagation-loss-model.h"
+#include "ns3/mmwave-3gpp-fake-buildings-propagation-loss-model.h"
 
 #define AOA_INDEX 0
 #define ZOA_INDEX 1
@@ -95,6 +96,8 @@ struct Params3gpp : public SimpleRefCount<Params3gpp>
 	Vector m_speed;
 	double m_dis2D;
 	double m_dis3D;
+
+	std::map<key_t, complexVector_t> m_allLongTermMap;
 };
 
 /**
@@ -159,18 +162,18 @@ struct ParamsTable: public Object
 };
 
 /**
- * \brief This class implements the fading computation of the 3GPP TR 38.900 channel model and performs the 
+ * \brief This class implements the fading computation of the 3GPP TR 38.900 channel model and performs the
  * beamforming gain computation. It implements the SpectrumPropagationLossModel interface
  */
 class MmWave3gppChannel : public SpectrumPropagationLossModel
 {
 public:
 
-	/** 
+	/**
     * Constructor
     */
 	MmWave3gppChannel ();
-	/** 
+	/**
    	* Destructor
    	*/
 	virtual ~MmWave3gppChannel ();
@@ -191,8 +194,9 @@ public:
 	 * as input
 	 * @param a NetDeviceContainer for the UEs
 	 * @param a NetDeviceContainer for the eNBs
+	 * @param an optional NetDeviceContainer for the IABs
 	 */
-	void Initial(NetDeviceContainer ueDevices, NetDeviceContainer enbDevices);
+	void Initial(NetDeviceContainer ueDevices, NetDeviceContainer enbDevices, NetDeviceContainer iabDevices = NetDeviceContainer ());
 
 	/**
 	 * Set the initial BF vector between two devices
@@ -219,6 +223,15 @@ public:
 	 */
 	void SetPathlossModel (Ptr<PropagationLossModel> pathloss);
 
+	/**
+	 * Set MmWave3gppChannel in interference/data or reference signal mode.
+	 * With the first, the beamforming pairs are associated to the data transmission
+	 * ongoing, and correctly handle the interference
+	 * With the second, on each link MmWave3gppChannel uses the BF vectors associated to the link
+	 *@param boolean flag (true = interference/data mode)
+	 */
+	void SetInterferenceOrDataMode(bool flag);
+
 private:
 
 	/**
@@ -235,8 +248,9 @@ private:
 	/**
 	 * Get the Tx and Rx info for the link
 	 */
-	std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, Ptr<AntennaArrayModel>, Ptr<AntennaArrayModel>, Vector,
-	bool, bool, double> GetTxRxInfo(Ptr<const MobilityModel> a, Ptr<const MobilityModel> b) const;
+	std::tuple<uint16_t, uint16_t, uint16_t, uint16_t, Ptr<AntennaArrayModel>, Ptr<AntennaArrayModel>, Vector,
+		bool, bool, double, Ptr<NetDevice>, bool, Ptr<NetDevice> >
+	GetTxRxInfo(Ptr<const MobilityModel> a, Ptr<const MobilityModel> b) const;
 
 	/**
 	 * Get a new realization of the channel
@@ -257,11 +271,11 @@ private:
 	 */
 	Ptr<Params3gpp> GetNewChannel(Ptr<ParamsTable> table3gpp, Vector locUT, bool los, bool o2i,
 			Ptr<AntennaArrayModel> txAntenna, Ptr<AntennaArrayModel> rxAntenna,
-			uint8_t *txAntennaNum, uint8_t *rxAntennaNum, Angles &rxAngle, Angles &txAngle,
-			Vector speed, double dis2D, double dis3D) const;
+			uint16_t *txAntennaNum, uint16_t *rxAntennaNum, Angles &rxAngle, Angles &txAngle,
+			Vector speed, double dis2D, double dis3D, std::string scenario) const;
 
 	/**
-	 * Update the channel realization with procedure A of TR 38.900 Sec 7.6.3.2 
+	 * Update the channel realization with procedure A of TR 38.900 Sec 7.6.3.2
 	 * for the spatial consistency
 	 * @params the previous channel realization in a Params3gpp object
 	 * @params the ParamsTable for the specific scenario
@@ -275,7 +289,7 @@ private:
 	 */
 	Ptr<Params3gpp> UpdateChannel(Ptr<Params3gpp> params3gpp, Ptr<ParamsTable> table3gpp,
 			Ptr<AntennaArrayModel> txAntenna, Ptr<AntennaArrayModel> rxAntenna,
-			uint8_t *txAntennaNum, uint8_t *rxAntennaNum, Angles &rxAngle, Angles &txAngle) const;
+			uint16_t *txAntennaNum, uint16_t *rxAntennaNum, Angles &rxAngle, Angles &txAngle, std::string scenario) const;
 
 	/**
 	 * Compute the optimal BF vector with the Power Method (Maximum Ratio Transmission method).
@@ -283,33 +297,37 @@ private:
 	 * @params the channel realizationin as a Params3gpp object
 	 */
 	void LongTermCovMatrixBeamforming (Ptr<Params3gpp> params) const;
-	
+
 	/**
 	 * Scan all sectors with predefined code book and select the one returns maximum gain.
 	 * The BF vector is stored in the Params3gpp object passed as parameter
 	 * @params the channel realizationin as a Params3gpp object
 	 */
 	void BeamSearchBeamforming (Ptr<const SpectrumValue> txPsd, Ptr<Params3gpp> params, Ptr<AntennaArrayModel> txAntenna,
-			Ptr<AntennaArrayModel> rxAntenna, uint8_t *txAntennaNum, uint8_t *rxAntennaNum) const;
+			Ptr<AntennaArrayModel> rxAntenna, uint16_t *txAntennaNum, uint16_t *rxAntennaNum) const;
 
 
 	/**
-	 * Compute and store the long term fading params in order to decrease the computational load
+	 * Compute and return the long term fading params in order to decrease the computational load
 	 * @params the channel realizationin as a Params3gpp object
+	 * @return the complexVector_t with the BF applied to the channel
 	 */
-	void CalLongTerm (Ptr<Params3gpp> params) const;
+	complexVector_t CalLongTerm (Ptr<Params3gpp> params) const;
 
 	/**
 	 * Compute the BF gain, apply frequency selectivity by phase-shifting with the cluster delays
 	 * and scale the txPsd to get the rxPsd
 	 * @params the tx PSD
 	 * @params the channel realizationin as a Params3gpp object
+	 * @params the longTerm component (i.e., with the BF vectors already applied)
 	 * @params the relative speed between UE and eNB
 	 * @returns the rx PSD
 	 */
 	Ptr<SpectrumValue> CalBeamformingGain (Ptr<const SpectrumValue> txPsd,
-												Ptr<Params3gpp> params, Vector speed) const;
-	
+												Ptr<Params3gpp> params,
+												complexVector_t longTerm,
+												Vector speed) const;
+
 	/**
 	 * Returns the bandwidth used in a scenario
 	 * @returns a double with the bandwidth
@@ -327,7 +345,7 @@ private:
 	 * @return the ParamsTable structure
 	 */
 	Ptr<ParamsTable> Get3gppTable (bool los, bool o2i,
-										double hBS, double hUT, double distance2D) const;
+										double hBS, double hUT, double distance2D, std::string scenario) const;
 
 	/**
 	 * Delete the m_channel entry associated to the Params3gpp object of pair (a,b)
@@ -344,7 +362,7 @@ private:
 	 * @params cluster zenith angle of arrival
 	 */
 	doubleVector_t CalAttenuationOfBlockage(Ptr<Params3gpp> params,
-			doubleVector_t clusterAOA, doubleVector_t clusterZOA) const;
+			doubleVector_t clusterAOA, doubleVector_t clusterZOA, std::string scenario) const;
 
 	mutable std::map< key_t, int > m_connectedPair;
 	mutable std::map< key_t, Ptr<Params3gpp> > m_channelMap;
@@ -361,14 +379,18 @@ private:
 	Ptr<PropagationLossModel> m_3gppPathloss;
 	Ptr<ParamsTable> m_table3gpp;
 	Time m_updatePeriod;
-	bool m_cellScan;
+	// bool m_cellScan;
+	bool m_directBeam;
 	bool m_blockage;
 	uint16_t m_numNonSelfBloking; //number of non-self-blocking regions.
 	bool m_portraitMode; //true (portrait mode); false (landscape mode).
-	std::string m_scenario;
 	double m_blockerSpeed;
 	bool m_forceInitialBfComputation;
+	bool m_interferenceOrDataMode;
+	Vector3D m_fixedIndoorSpeed;
+	Vector3D m_fixedOutdoorSpeed;
 
+	NetDeviceContainer m_ueIabEnbNetDeviceContainer;
 };
 
 

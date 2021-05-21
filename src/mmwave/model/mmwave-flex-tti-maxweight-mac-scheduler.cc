@@ -279,6 +279,18 @@ MmWaveFlexTtiMaxWeightMacScheduler::SetIabScheduler(bool iabScheduler)
 	m_iabScheduler = iabScheduler;
 }
 
+void
+MmWaveFlexTtiMaxWeightMacScheduler::SetIabBsrMapReportCallback(BsrReportCallback infoSendCallback)
+{
+	NS_FATAL_ERROR ("This scheduler does not support central IAB controller yet!");
+}
+
+void 
+MmWaveFlexTtiMaxWeightMacScheduler::SetIabCqiMapReportCallback(CqiReportCallback infoSendCallback)
+{
+	NS_FATAL_ERROR ("This scheduler does not support central IAB controller yet!");
+}
+
 // IAB methods
 void
 MmWaveFlexTtiMaxWeightMacScheduler::SetMmWaveUeMacCschedSapProvider(MmWaveUeMacCschedSapProvider* sap)

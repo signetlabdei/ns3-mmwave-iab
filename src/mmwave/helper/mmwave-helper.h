@@ -68,6 +68,7 @@
 #include <ns3/mmwave-bearer-stats-connector.h>
 #include <ns3/propagation-loss-model.h>
 #include <ns3/mmwave-channel-raytracing.h>
+#include <ns3/mmwave-iab-controller.h>
 
 #include <ns3/lte-enb-mac.h>
 #include <ns3/lte-enb-net-device.h>
@@ -93,6 +94,7 @@ class SpectrumpropagationLossModel;
 class MmWaveSpectrumValueHelper;
 class PropagationLossModel;
 //class MmWave3gppChannel;
+typedef std::pair<uint32_t, uint32_t> DepthDistPair;
 
 class MmWaveHelper : public Object
 {
@@ -146,6 +148,8 @@ public:
 	 * Attach IAB nodes to the closest wired gNB
 	 */
 	void AttachIabToClosestWiredEnb (NetDeviceContainer iabDevices, NetDeviceContainer enbDevices);
+
+    void ActivateDonorControllerIabSetup(NetDeviceContainer enbDevices, NetDeviceContainer iabDevices, NodeContainer enbNodes, NodeContainer iabNodes);
 	
 	void EnableTraces ();
 
@@ -206,6 +210,17 @@ public:
 	void AddX2Interface (NodeContainer lteEnbNodes, NodeContainer mmWaveEnbNodes);
 	void AddX2Interface (Ptr<Node> enbNode1, Ptr<Node> enbNode2);
 
+	/**
+	* Initialize the MmWave3gppChannel
+	*
+	* \param ueNetDevices NetDeviceContainer containing all the UE devs
+	* \param enbNetDevices NetDeviceContainer containig all the eNB devs
+	* \param iabNetDevices NetDeviceContainer containig all the IAB devs
+	*
+	* This method has to be called once, just before the attachment procedure.
+	*/
+	void ChannelInitialization (NetDeviceContainer ueDevs, NetDeviceContainer enbDevs, NetDeviceContainer iabDevs = NetDeviceContainer ());
+
 protected:
 	virtual void DoInitialize();
 
@@ -220,7 +235,21 @@ private:
 	void AttachToSingleClosestEnb (Ptr<NetDevice> ueDevice, NetDeviceContainer enbDevices);
 	void AttachMcToClosestEnb (Ptr<NetDevice> ueDevice, NetDeviceContainer mmWaveEnbDevices, NetDeviceContainer lteEnbDevices);
 	void AttachIrToClosestEnb (Ptr<NetDevice> ueDevice, NetDeviceContainer mmWaveEnbDevices, NetDeviceContainer lteEnbDevices);
-	void AttachIabToClosestEnb (Ptr<NetDevice> iabDevice, NetDeviceContainer enbDevices);
+
+   /**
+	* Attaches the IAB node to the closest gNB. Returns a pointer to the parent node
+	*/
+	Ptr<NetDevice>  AttachIabToClosestEnb (Ptr<NetDevice> iabDevice, NetDeviceContainer enbDevices);
+	
+	void UpdateDistDepth(Ptr<NetDevice> attachedDev, Ptr<NetDevice> nextDev, std::map< Ptr<NetDevice>, bool > attachedDevMap);
+	std::vector<uint16_t> GetChildrenCellIdListFromAssociationMap(uint16_t parentCellId);
+
+   /**
+	* Generates a map holding as key the node depth and as value the pair IAB's node IMSI and parent's IMSI
+	*
+	* This function relies on the assumption of an up-to-date #m_associationChainMap.
+	*/
+	std::multimap<uint32_t, IabChildParent> GenerateDepthChildParentImsiMap ();
 	
 	void EnableDlPhyTrace ();
 	void EnableUlPhyTrace ();
@@ -243,6 +272,10 @@ private:
 	Ptr<MmWaveChannelMatrix> m_channelMatrix;
 	Ptr<MmWaveChannelRaytracing> m_raytracing;
 	Ptr<MmWave3gppChannel> m_3gppChannel;
+	bool m_3gppChannelInitialized; // true if ChannelInitialization has been called
+
+	uint16_t m_noEnbPanels;
+	uint16_t m_noUePanels;
 
 	Ptr<Object> m_pathlossModel;
 	std::string m_pathlossModelType;
@@ -306,10 +339,13 @@ private:
 	Ptr<McStatsCalculator> m_mcStats;
 	Ptr<MmWaveBearerStatsConnector> m_radioBearerStatsConnector;
   	Ptr<CoreNetworkStatsCalculator> m_cnStats;
+    std::map <uint16_t, uint64_t> m_iabCellIdImsiMap;	// Associates cell IDs to IMSIs, used only for IAB scenarios which involve a centralized controller
+	std::map <uint16_t, uint16_t> m_associationChainMap;
+	std::map <uint16_t, DepthDistPair> m_distMap;
+
 
 };
 
 }
 
 #endif /* MMWAVE_HELPER_H */
-

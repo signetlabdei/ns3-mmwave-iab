@@ -1,6 +1,6 @@
 /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
 /* *
- * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab. 
+ * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,10 +16,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Michele Polese <michele.polese@gmail.com>
- * 
+ *
  */
 
- 
+
 
 #ifndef MMWAVE_IAB_NET_DEVICE_H
 #define MMWAVE_IAB_NET_DEVICE_H
@@ -53,8 +53,8 @@ class Node;
   */
 class MmWaveIabNetDevice : public NetDevice
 {
-public: 
-	// methods inherited from NetDevide. 
+public:
+	// methods inherited from NetDevide.
 	static TypeId GetTypeId (void);
 
 	MmWaveIabNetDevice ();
@@ -88,19 +88,19 @@ public:
     virtual bool Send (Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber);
 
     Ipv4Address GetPacketDestination (Ptr<Packet> packet);
-  
+
     // not supported
     void Receive (Ptr<Packet> p);
-    /** 
+    /**
      * receive a packet from the Access RRC layer in order to forward it to the EpcIabApplication layers
-     * 
+     *
      * \param p the packet
      */
     void ReceiveAccess (Ptr<Packet> p);
 
-    /** 
+    /**
      * receive a packet from the backhaul EpcUeNas layer in order to forward it to the EpcIabApplication layer
-     * 
+     *
      * \param p the packet
      */
     void ReceiveBackhaul (Ptr<Packet> p);
@@ -110,12 +110,22 @@ public:
   	/**
   	 * Get the IMSI associated with the UE in the BH link
   	 */
-	uint64_t GetImsi () const;
+	  uint64_t GetImsi () const;
 
-	/**
+	 /**
 	 * Get the CellId associated with the gNB in the access link
 	 */
     uint16_t GetCellId () const;
+
+    void SetTxPower (double txPower);
+
+    double GetTxPower () const;
+
+    void SetNoiseFigure (double noiseFigure);
+
+	  double GetNoiseFigure () const;
+
+
 
 	// ---------------------------- Backhaul methods ------------------------
 
@@ -141,6 +151,12 @@ public:
 
   Ptr<LteEnbRrc> GetAccessRrc () const;
 
+  Ptr<MmWaveMacScheduler> GetMacScheduler () const;
+
+  void RequestToSetIabBsrMapCallback (BsrReportCallback infoSendCallback);
+
+  void RequestToSetIabCqiMapCallback (CqiReportCallback infoSendCallback);
+
 	void SetAccessAntennaNum (uint16_t antennaNum);
 
   uint16_t GetAccessAntennaNum () const;
@@ -160,7 +176,7 @@ protected:
 	void UpdateConfig ();
 
 private:
-	
+
   Mac48Address m_macaddress;
   Ptr<Node> m_node;
   mutable uint16_t m_mtu;
@@ -188,13 +204,15 @@ private:
 	bool m_isConfigured;
 
 	// Common
-	Ptr<EpcUeNas> m_nas; // TODO one or more NAS? 
-	uint64_t m_imsi; 
+	Ptr<EpcUeNas> m_nas; // TODO one or more NAS?
+	uint64_t m_imsi;
 	uint16_t m_cellId;
-	
+  double m_txPower;
+  double m_noiseFigure;
+
 };
 
 } // namespace ns3
 
-#endif 
+#endif
 //MMWAVE_IAB_NET_DEVICE_H

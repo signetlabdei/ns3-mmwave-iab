@@ -2,21 +2,21 @@
  /*
  *   Copyright (c) 2011 Centre Tecnologic de Telecomunicacions de Catalunya (CTTC)
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *  
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
- *  
+ *
+ *
  *   Author: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 Sourjya Dutta <sdutta@nyu.edu>
  *        	 Russell Ford <russell.ford@nyu.edu>
@@ -52,36 +52,72 @@ MmWave3gppPropagationLossModel::GetTypeId (void)
     .SetParent<PropagationLossModel> ()
     .AddConstructor<MmWave3gppPropagationLossModel> ()
     .AddAttribute ("MinLoss",
-                   "The minimum value (dB) of the total loss, used at short ranges.",
-                   DoubleValue (0.0),
-                   MakeDoubleAccessor (&MmWave3gppPropagationLossModel::SetMinLoss,
-                                       &MmWave3gppPropagationLossModel::GetMinLoss),
-                   MakeDoubleChecker<double> ())
+          "The minimum value (dB) of the total loss, used at short ranges.",
+          DoubleValue (0.0),
+          MakeDoubleAccessor (&MmWave3gppPropagationLossModel::SetMinLoss,
+                              &MmWave3gppPropagationLossModel::GetMinLoss),
+          MakeDoubleChecker<double> ())
     .AddAttribute ("ChannelCondition",
-					"'l' for LOS, 'n' for NLOS, 'a' for all",
-					StringValue ("a"),
-					MakeStringAccessor (&MmWave3gppPropagationLossModel::m_channelConditions),
-					MakeStringChecker ())
-	.AddAttribute ("Scenario",
-				"The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
-				StringValue ("RMa"),
-				MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenario),
-				MakeStringChecker ())
-	.AddAttribute ("OptionalNlos",
-				"Use the optional NLoS propagation loss model",
-				BooleanValue (false),
-				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_optionNlosEnabled),
-				MakeBooleanChecker ())
-	.AddAttribute ("Shadowing",
-				"Enable shadowing effect",
-				BooleanValue (true),
-				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_shadowingEnabled),
-				MakeBooleanChecker ())
-	.AddAttribute ("InCar",
-				"If inside a vehicle, car penetration loss should be added to propagation loss",
-				BooleanValue (false),
-				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_inCar),
-				MakeBooleanChecker ())
+  				"'l' for LOS, 'n' for NLOS, 'a' for all",
+  				StringValue ("a"),
+  				MakeStringAccessor (&MmWave3gppPropagationLossModel::m_channelConditions),
+  				MakeStringChecker ())
+  	.AddAttribute ("ScenarioEnbEnb",
+  				"The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
+  				StringValue ("RMa"),
+  				MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenarioEnbEnb),
+  				MakeStringChecker ())
+    .AddAttribute ("ScenarioEnbUe",
+  				"The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
+  				StringValue ("RMa"),
+  				MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenarioEnbUe),
+  				MakeStringChecker ())
+    .AddAttribute ("ScenarioEnbIab",
+  				"The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
+  				StringValue ("RMa"),
+  				MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenarioEnbIab),
+  				MakeStringChecker ())
+    .AddAttribute ("ScenarioIabIab",
+  				"The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
+  				StringValue ("RMa"),
+  				MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenarioIabIab),
+  				MakeStringChecker ())
+    .AddAttribute ("ScenarioIabUe",
+          "The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
+          StringValue ("RMa"),
+          MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenarioIabUe),
+          MakeStringChecker ())
+    .AddAttribute ("ScenarioUeUe",
+          "The available channel scenarios are 'RMa', 'UMa', 'UMi-StreetCanyon', 'InH-OfficeMixed', 'InH-OfficeOpen', 'InH-ShoppingMall'",
+          StringValue ("RMa"),
+          MakeStringAccessor (&MmWave3gppPropagationLossModel::m_scenarioUeUe),
+          MakeStringChecker ())
+  	.AddAttribute ("OptionalNlos",
+  				"Use the optional NLoS propagation loss model",
+  				BooleanValue (false),
+  				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_optionNlosEnabled),
+  				MakeBooleanChecker ())
+  	.AddAttribute ("Shadowing",
+  				"Enable shadowing effect",
+  				BooleanValue (true),
+  				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_shadowingEnabled),
+  				MakeBooleanChecker ())
+  	.AddAttribute ("InCar",
+  				"If inside a vehicle, car penetration loss should be added to propagation loss",
+  				BooleanValue (false),
+  				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_inCar),
+  				MakeBooleanChecker ())
+  	// for testing
+  	.AddAttribute ("LossFixedDb",
+  				"Fixed value for the propagation loss [dB]",
+  				DoubleValue (0.0),
+  				MakeDoubleAccessor (&MmWave3gppPropagationLossModel::m_lossFixedDb),
+  				MakeDoubleChecker<double> ())
+  	.AddAttribute ("FixedLossTst",
+  				"Boolean flag to use a fixed loss value",
+  				BooleanValue (false),
+  				MakeBooleanAccessor (&MmWave3gppPropagationLossModel::m_fixedLossTst),
+  				MakeBooleanChecker ())
   ;
   return tid;
 }
@@ -89,6 +125,7 @@ MmWave3gppPropagationLossModel::GetTypeId (void)
 MmWave3gppPropagationLossModel::MmWave3gppPropagationLossModel ()
 {
   m_channelConditionMap.clear ();
+  m_channelScenarioMap.clear ();
   m_norVar = CreateObject<NormalRandomVariable> ();
   m_norVar->SetAttribute ("Mean", DoubleValue (0));
   m_norVar->SetAttribute ("Variance", DoubleValue (1));
@@ -116,19 +153,33 @@ MmWave3gppPropagationLossModel::GetFrequency (void) const
   return m_frequency;
 }
 
+void
+MmWave3gppPropagationLossModel::SetLossFixedDb(double loss)
+{
+	m_lossFixedDb = loss;
+}
 
 double
 MmWave3gppPropagationLossModel::DoCalcRxPower (double txPowerDbm,
                                           Ptr<MobilityModel> a,
                                           Ptr<MobilityModel> b) const
 {
-	  return (txPowerDbm - GetLoss (a, b));
+	if(!m_fixedLossTst)
+	{
+	  	return (txPowerDbm - GetLoss (a, b));
+	}
+	else
+	{
+		return txPowerDbm - m_lossFixedDb;
+	}
 }
 
-std::tuple<Ptr<MobilityModel>, Ptr<MobilityModel>, bool >
+std::tuple<Ptr<MobilityModel>, Ptr<MobilityModel>, bool, bool >
 MmWave3gppPropagationLossModel::GetEnbUePair(Ptr<MobilityModel> a, Ptr<MobilityModel> b) const
 {
 	bool skip = false;
+	bool backhaulLink = false;
+
 	Ptr<MobilityModel> ueMob=0, enbMob=0;
 	if(DynamicCast<MmWaveEnbNetDevice> (a->GetObject<Node> ()->GetDevice(0)) != 0)
 	{
@@ -139,12 +190,20 @@ MmWave3gppPropagationLossModel::GetEnbUePair(Ptr<MobilityModel> a, Ptr<MobilityM
 		{
 			skip = true;
 		}
+		else if(DynamicCast<MmWaveIabNetDevice> (b->GetObject<Node> ()->GetDevice(0)) != 0)
+		{
+			backhaulLink = true;
+		}
 	}
 	else if(DynamicCast<MmWaveEnbNetDevice> (b->GetObject<Node> ()->GetDevice(0)) != 0)
 	{
 		// for sure it is uplink
 		ueMob = a;
 		enbMob = b;
+		if(DynamicCast<MmWaveIabNetDevice> (a->GetObject<Node> ()->GetDevice(0)) != 0)
+		{
+			backhaulLink = true;
+		}
 	}
 	else
 	{
@@ -172,6 +231,7 @@ MmWave3gppPropagationLossModel::GetEnbUePair(Ptr<MobilityModel> a, Ptr<MobilityM
 					ueMob = a;
 					enbMob = b;
 				}
+				backhaulLink = true;
 			}
 		}
 		else if(DynamicCast<MmWaveIabNetDevice> (b->GetObject<Node> ()->GetDevice(0)) != 0)
@@ -180,14 +240,14 @@ MmWave3gppPropagationLossModel::GetEnbUePair(Ptr<MobilityModel> a, Ptr<MobilityM
 			ueMob = a;
 			enbMob = b;
 		}
-		else 
+		else
 		{
 			// UE to UE or MC UE to MC UE
 			skip = true;
 		}
 	}
 
-	return std::make_tuple(enbMob, ueMob, skip);
+	return std::make_tuple(enbMob, ueMob, skip, backhaulLink);
 }
 
 double
@@ -253,8 +313,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 
 	enbMob = std::get<0>(returnParams);
 	ueMob =  std::get<1>(returnParams);
-
-	
+	bool backhaulLink = std::get<3>(returnParams);
 
 	Vector uePos = ueMob->GetPosition();
 	Vector enbPos = enbMob->GetPosition();
@@ -263,8 +322,6 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 	double distance2D = sqrt (x*x +y*y);
 	double hBs = enbPos.z;
 	double hUt = uePos.z;
-
-	
 
 	channelConditionMap_t::const_iterator it;
 	it = m_channelConditionMap.find(std::make_pair(a,b));
@@ -275,19 +332,19 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 		if (m_channelConditions.compare("l")==0 )
 		{
 			condition.m_channelCondition = 'l';
-			NS_LOG_UNCOND (m_scenario << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
+			NS_LOG_UNCOND (GetScenario (a, b) << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
 		}
 		else if (m_channelConditions.compare("n")==0)
 		{
 			condition.m_channelCondition = 'n';
-			NS_LOG_UNCOND (m_scenario << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
+			NS_LOG_UNCOND (GetScenario (a, b) << " scenario, channel condition is fixed to be " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
 		}
 		else if (m_channelConditions.compare("a")==0)
 		{
 			double PRef = m_uniformVar->GetValue();
 			double probLos;
 			//Note: The LOS probability is derived with assuming antenna heights of 3m for indoor, 10m for UMi, and 25m for UMa.
-			if (m_scenario == "RMa")
+			if (GetScenario (a,b) == "RMa")
 			{
 				if(distance2D <= 10)
 				{
@@ -298,7 +355,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 					probLos = exp(-(distance2D-10)/1000);
 				}
 			}
-			else if (m_scenario == "UMa")
+			else if (GetScenario (a,b) == "UMa")
 			{
 				if(distance2D <= 18)
 				{
@@ -322,7 +379,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 					probLos = (18/distance2D+exp(-distance2D/63)*(1-18/distance2D))*(1+C_hUt*5/4*pow(distance2D/100,3)*exp(-distance2D/150));
 				}
 			}
-			else if (m_scenario == "UMi-StreetCanyon")
+			else if (GetScenario (a,b) == "UMi-StreetCanyon")
 			{
 				if(distance2D <= 18)
 				{
@@ -333,7 +390,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 					probLos = 18/distance2D+exp(-distance2D/36)*(1-18/distance2D);
 				}
 			}
-			else if (m_scenario == "InH-OfficeMixed")
+			else if (GetScenario (a,b) == "InH-OfficeMixed")
 			{
 				if(distance2D <= 1.2)
 				{
@@ -348,7 +405,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 					probLos = exp(-(distance2D-6.5)/32.6)*0.32;
 				}
 			}
-			else if (m_scenario == "InH-OfficeOpen")
+			else if (GetScenario (a,b) == "InH-OfficeOpen")
 			{
 				if(distance2D <= 5)
 				{
@@ -363,7 +420,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 					probLos = exp(-(distance2D-49)/211.7)*0.54;
 				}
 			}
-			else if (m_scenario == "InH-ShoppingMall")
+			else if (GetScenario (a,b) == "InH-ShoppingMall")
 			{
 				probLos = 1;
 
@@ -371,6 +428,23 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 			else
 			{
 				NS_FATAL_ERROR ("Unknown scenario");
+			}
+
+			// according to TR 38.874, the parameters for the backhaul channels
+			// should be chosen as those who give the best realization among three 
+			// random ones
+			if (backhaulLink) 
+			{
+				// < 2 given that the first realization is PRef
+				for(uint8_t attempt = 0; attempt < 2; attempt++)
+				{
+					double newProb = m_uniformVar->GetValue();
+					if (newProb < PRef)
+					{
+						// the smallest, the higher the probability of LOS
+						PRef = newProb;
+					}
+				}
 			}
 
 			if (PRef <= probLos)
@@ -381,7 +455,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 			{
 				condition.m_channelCondition = 'n';
 			}
-			NS_LOG_UNCOND (m_scenario << " scenario, 2D distance = " << distance2D <<"m, Prob_LOS = " << probLos
+			NS_LOG_UNCOND (GetScenario (a,b) << " scenario, 2D distance = " << distance2D <<"m, Prob_LOS = " << probLos
 					<< ", Prob_REF = " << PRef << ", the channel condition is " << condition.m_channelCondition<<", h_BS="<<hBs<<",h_UT="<<hUt);
 
 		}
@@ -409,7 +483,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 
 	double shadowingStd = 0;
 	double shadowingCorDistance = 0;
-	if (m_scenario == "RMa")
+	if (GetScenario (a,b) == "RMa")
 	{
 		if(distance2D < 10)
 		{
@@ -468,7 +542,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 		}
 
 	}
-	else if (m_scenario == "UMa")
+	else if (GetScenario (a,b) == "UMa")
 	{
 		if(distance2D < 10)
 		{
@@ -553,7 +627,92 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 				NS_FATAL_ERROR ("Programming Error.");
 		}
 	}
-	else if (m_scenario == "UMi-StreetCanyon")
+	else if (GetScenario (a,b) == "5GCM-UMa")
+	{
+		if(distance2D < 10)
+		{
+			NS_LOG_UNCOND ("The 2D distance is smaller than 10 meters, the 3GPP UMa model may not be accurate");
+		}
+
+		//default base station value is 25 m
+		//hBs = 25;
+
+		if (hUt < 1.5 || hUt > 22.5 )
+		{
+			NS_FATAL_ERROR ("According to table 7.4.1-1, the UMa scenario need to satisfy the following condition, 1.5 m <= hUT <= 22.5 m");
+		}
+		//For UMa, the effective environment height should be computed follow Table7.4.1-1.
+		if((*it).second.m_hE == 0)
+		{
+			channelCondition condition;
+			condition = (*it).second;
+			if (hUt <= 18)
+			{
+				condition.m_hE = 1;
+			}
+			else
+			{
+				double g_d2D = 1.25*pow(distance2D/100,3)*exp(-1*distance2D/150);
+				double C_d2D_hUT = pow((hUt-13)/10,1.5)*g_d2D;
+				double prob = 1/(1+C_d2D_hUT);
+
+				if(m_uniformVar->GetValue() < prob)
+				{
+					condition.m_hE = 1;
+				}
+				else
+				{
+					int random = m_uniformVar->GetInteger(12, (int)(hUt-1.5));
+					condition.m_hE = (double)floor(random/3)*3;
+				}
+			}
+			UpdateConditionMap(a,b,condition);
+		}
+		double dBP = 4*(hBs-(*it).second.m_hE)*(hUt-(*it).second.m_hE)*m_frequency/3e8;
+		if(distance2D <= dBP)
+		{
+			//PL1
+			lossDb = 32.4+20*log10(distance3D)+20*log10(freqGHz);
+		}
+		else
+		{
+			//PL2
+			lossDb = 32.4+40*log10(distance3D)+20*log10(freqGHz)-10*log10(pow(dBP,2)+pow(hBs-hUt,2));
+		}
+
+
+		switch ((*it).second.m_channelCondition)
+		{
+			case 'l':
+			{
+				shadowingStd = 4.1;
+				shadowingCorDistance = 37;
+				break;
+			}
+			case 'n':
+			{
+				shadowingCorDistance = 50;
+				if(true) // always use option NLOS pathloss
+				{
+					//optional propagation loss
+					lossDb = 32.4+20*log10(freqGHz)+30*log10(distance3D);
+					shadowingStd = 6.8;
+				}
+				else
+				{
+					double PLNlos = 13.54+39.08*log10(distance3D)+20*log10(freqGHz)-0.6*(hUt-1.5);
+					shadowingStd = 6;
+					lossDb = std::max(PLNlos, lossDb);
+				}
+
+
+				break;
+			}
+			default:
+				NS_FATAL_ERROR ("Programming Error.");
+		}
+	}
+	else if (GetScenario (a,b) == "UMi-StreetCanyon")
 	{
 
 		if(distance2D < 10)
@@ -611,7 +770,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 				NS_FATAL_ERROR ("Programming Error.");
 		}
 	}
-	else if (m_scenario == "InH-OfficeMixed" || m_scenario == "InH-OfficeOpen")
+	else if (GetScenario (a,b) == "InH-OfficeMixed" || GetScenario (a,b) == "InH-OfficeOpen")
 	{
 		if(distance3D < 1 || distance3D > 100)
 		{
@@ -658,7 +817,7 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 		}
 	}
 
-	else if (m_scenario == "InH-ShoppingMall")
+	else if (GetScenario (a,b) == "InH-ShoppingMall")
 	{
 		shadowingCorDistance = 10; //I use the office correlation distance since shopping mall is not in the table.
 
@@ -678,11 +837,32 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 	{
 		channelCondition cond;
 		cond = (*it).second;
+
+		double shadowingNormal = m_norVar->GetValue();
+		// according to TR 38.874, the parameters for the backhaul channels
+		// should be chosen as those who give the best realization among three 
+		// random ones
+		if (backhaulLink) 
+		{
+			// < 2 given that the first realization is shadowingNormal
+			for(uint8_t attempt = 0; attempt < 2; attempt++) 
+			{
+				double newProb = m_norVar->GetValue();
+				if (newProb < shadowingNormal)
+				{
+					// the smallest, the smaller the pathloss
+					shadowingNormal = newProb;
+				}
+			}
+		}
+
+		shadowingNormal *= shadowingStd;
+
 		//The first transmission the shadowing is initialed as -1e6,
 		//we perform this if check the identify first  transmission.
 		if((*it).second.m_shadowing < -1e5)
 		{
-			cond.m_shadowing = m_norVar->GetValue()*shadowingStd;
+			cond.m_shadowing = shadowingNormal;
 		}
 		else
 		{
@@ -691,12 +871,12 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 			double disDiff = sqrt (deltaX*deltaX +deltaY*deltaY);
 			//NS_LOG_UNCOND (shadowingStd <<"  "<<disDiff <<"  "<<shadowingCorDistance);
 			double R = exp(-1*disDiff/shadowingCorDistance); // from equation 7.4-5.
-			cond.m_shadowing = R*(*it).second.m_shadowing + sqrt(1-R*R)*m_norVar->GetValue()*shadowingStd;
+			cond.m_shadowing = R*(*it).second.m_shadowing + sqrt(1-R*R)*shadowingNormal;
 		}
 
 		lossDb += cond.m_shadowing;
 		cond.m_position = ueMob->GetPosition();
-		UpdateConditionMap(a,b,cond);
+		UpdateConditionMap(a, b, cond);
 	}
 
 
@@ -737,6 +917,65 @@ MmWave3gppPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel
 	return std::max (lossDb, m_minLoss);
 }
 
+double
+MmWave3gppPropagationLossModel::GetOutdoorToIndoorLoss(bool lowLossModel, std::string scenario)
+{
+	NS_LOG_FUNCTION(this);
+	// See  equation 7.4-2 and table 7.4.3-2 in 3GPP TR 38.900 V15.0.0 and the equivalent
+	// equations in Sec. 6.3 of the 5GCM white paper http://www.5gworkshops.com/5GCMSIG_White%20Paper_r2dot3.pdf
+
+	double stdP = 0; // standard deviation of the noise term in the O2I equation, in dB
+	double PL_tw = 0; // building penetration loss in 7.4-2 from 3GPP TR 38.900, in dB
+	double lossIndoor = 0; // total indoor loss, in dB
+
+	if(lowLossModel)
+	{
+		PL_tw = 5-10*log10(0.3*pow(10,-1*(2+0.2*m_frequency*1e-9)/10)+0.7*pow(10,-1*(5+4*m_frequency*1e-9)/10));
+		if(scenario != "5GCM-UMa")
+		{
+			stdP = 4.4;
+		}
+		else
+		{
+			stdP = 3;
+		}
+	}
+	else
+	{
+		PL_tw = 5-10*log10(0.7*pow(10,-1*(23+0.3*m_frequency*1e-9)/10)+0.3*pow(10,-1*(5+4*m_frequency*1e-9)/10));
+		if(scenario != "5GCM-UMa")
+		{
+			stdP = 6.5;
+		}
+		else
+		{
+			stdP = 5;
+		}
+	}
+
+	lossIndoor += PL_tw;
+
+	//compute PL_in
+
+	Ptr<UniformRandomVariable> uniRv1 = CreateObject<UniformRandomVariable> ();
+	Ptr<UniformRandomVariable> uniRv2 = CreateObject<UniformRandomVariable> ();
+	double dis_2D_in;
+	if(scenario == "RMa")
+	{
+		dis_2D_in = std::min(uniRv1->GetValue(0,10), uniRv2->GetValue(0,10));
+	}
+	else
+	{
+		dis_2D_in = std::min(uniRv1->GetValue(0,25), uniRv2->GetValue(0,25));
+	}
+	lossIndoor += 0.5*dis_2D_in;
+	//compute indoor shadowing
+	Ptr<NormalRandomVariable> norRv = CreateObject<NormalRandomVariable> ();
+	lossIndoor += stdP*norRv->GetValue();
+
+	return lossIndoor;
+}
+
 int64_t
 MmWave3gppPropagationLossModel::DoAssignStreams (int64_t stream)
 {
@@ -765,9 +1004,100 @@ MmWave3gppPropagationLossModel::GetChannelCondition(Ptr<MobilityModel> a, Ptr<Mo
 }
 
 std::string
-MmWave3gppPropagationLossModel::GetScenario ()
+MmWave3gppPropagationLossModel::GetScenario (Ptr<MobilityModel> a, Ptr<MobilityModel> b) const
 {
-	return m_scenario;
+  NS_LOG_FUNCTION (this);
+
+  std::string scenario;
+  std::pair <Ptr<MobilityModel>, Ptr<MobilityModel>> key = std::make_pair (a, b);
+  std::pair <Ptr<MobilityModel>, Ptr<MobilityModel>> key_reverse = std::make_pair (b, a);
+
+  // Look for the channel scenario associated to this link in the m_channelScenarioMap
+  // If not found, retrieve the scenario store it the the map
+  if (m_channelScenarioMap.find (key) != m_channelScenarioMap.end ())
+  {
+    scenario = m_channelScenarioMap.at (key);
+  }
+  else if (m_channelScenarioMap.find (key_reverse) != m_channelScenarioMap.end ())
+  {
+    scenario = m_channelScenarioMap.at (key_reverse);
+  }
+  else
+  {
+    if ((DynamicCast<MmWaveEnbNetDevice> (a->GetObject<Node> ()->GetDevice(0))) != 0)
+    {
+      if ((DynamicCast<MmWaveEnbNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // eNB to eNB
+        scenario = m_scenarioEnbEnb;
+      }
+      else if ((DynamicCast<MmWaveUeNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // eNB to UE
+        scenario = m_scenarioEnbUe;
+      }
+      else if ((DynamicCast<MmWaveIabNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // eNB to IAB
+        scenario = m_scenarioEnbIab;
+      }
+      else
+      {
+        NS_FATAL_ERROR ("Unknown case");
+      }
+    }
+    else if ((DynamicCast<MmWaveUeNetDevice> (a->GetObject<Node> ()->GetDevice(0))) != 0)
+    {
+      if ((DynamicCast<MmWaveEnbNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // UE to eNB
+        scenario = m_scenarioEnbUe;
+      }
+      else if ((DynamicCast<MmWaveUeNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // UE to UE
+        scenario = m_scenarioUeUe;
+      }
+      else if ((DynamicCast<MmWaveIabNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // UE to IAB
+        scenario = m_scenarioIabUe;
+      }
+      else
+      {
+        NS_FATAL_ERROR ("Unknown case");
+      }
+    }
+    else if ((DynamicCast<MmWaveIabNetDevice> (a->GetObject<Node> ()->GetDevice(0))) != 0)
+    {
+      if ((DynamicCast<MmWaveEnbNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // IAB to eNB
+        scenario = m_scenarioEnbIab;
+      }
+      else if ((DynamicCast<MmWaveUeNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // IAB to UE
+        scenario = m_scenarioIabUe;
+      }
+      else if ((DynamicCast<MmWaveIabNetDevice> (b->GetObject<Node> ()->GetDevice(0))) != 0)
+      {
+        // IAB to IAB
+        scenario = m_scenarioIabIab;
+      }
+      else
+      {
+        NS_FATAL_ERROR ("Unknown case");
+      }
+    }
+    else
+    {
+      NS_FATAL_ERROR ("Unknown case");
+    }
+    m_channelScenarioMap.insert (std::make_pair (key, scenario));
+  }
+
+	return scenario;
 }
 
 void

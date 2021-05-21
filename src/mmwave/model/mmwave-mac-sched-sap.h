@@ -66,7 +66,7 @@ public:
 
   struct SchedUlMacCtrlInfoReqParameters
   {
-		SfnSf  m_sfnSf;
+	SfnSf  m_sfnSf;
     std::vector <struct MacCeElement> m_macCeList;
   };
 
@@ -109,12 +109,22 @@ public:
 
 	struct SchedConfigIndParameters
 	{
+		/** 
+		* Default constructor, initializes all IMSIs to 0
+		*/
+		SchedConfigIndParameters () 
+			: m_sfnSf (), 
+			m_sfAllocInfo (),
+			m_dlSfAllocInfo (),
+			m_ulSfAllocInfo (),
+			m_schedInfoMap ({})
+		{
+		}
+
 		SfnSf m_sfnSf;
-//		TddSlotTypeList m_tddPattern;
 		SfAllocInfo m_sfAllocInfo;
 		SfAllocInfo m_dlSfAllocInfo;
 		SfAllocInfo m_ulSfAllocInfo;
-
 		std::map<uint16_t, SchedInfo> m_schedInfoMap;
 	};
 

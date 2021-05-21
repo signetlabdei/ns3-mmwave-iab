@@ -61,11 +61,13 @@ public:
 	static const unsigned int m_crcLen=24;
 
 private:
-	  double m_ber;
-	  AmcModel m_amcModel;
+	double m_ber;
+	double m_miBer;
 
-	  Ptr<MmWavePhyMacCommon> m_phyMacConfig;
-		Ptr<SpectrumModel> m_lteRbModel;
+	AmcModel m_amcModel;
+
+	Ptr<MmWavePhyMacCommon> m_phyMacConfig;
+	Ptr<SpectrumModel> m_lteRbModel;
 };
 
 } // end namespace ns3

@@ -1,22 +1,22 @@
  /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
  /*
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *   Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab. 
- *  
+ *   Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab.
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
- *  
+ *
+ *
  *   Author: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 Sourjya Dutta <sdutta@nyu.edu>
  *        	 Russell Ford <russell.ford@nyu.edu>
@@ -158,8 +158,8 @@ MmWaveChannelMatrix::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> txPs
 	Ptr<MmWaveUeNetDevice> rxUe =
 					DynamicCast<MmWaveUeNetDevice> (rxDevice);
 
-	uint8_t txAntennaNum[2];
-	uint8_t rxAntennaNum[2];
+	uint16_t txAntennaNum[2];
+	uint16_t rxAntennaNum[2];
 
 	if(txEnb!=0 && rxUe!=0)
 	{
@@ -177,7 +177,7 @@ MmWaveChannelMatrix::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> txPs
 	else if (txEnb!=0 && rxUe == 0)
 	{
 		Ptr<McUeNetDevice> mcRxUe = DynamicCast<McUeNetDevice> (rxDevice);
-		if (mcRxUe != 0) 
+		if (mcRxUe != 0)
 		{
 			NS_LOG_INFO ("this is downlink case for MC device");
 			txAntennaNum[0] = sqrt (txEnb->GetAntennaNum ());
@@ -209,7 +209,7 @@ MmWaveChannelMatrix::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> txPs
 						txUe->GetPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 			rxAntennaArray = DynamicCast<AntennaArrayModel> (
 						rxEnb->GetPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
-		} 
+		}
 		else
 		{
 			Ptr<McUeNetDevice> mcTxUe = DynamicCast<McUeNetDevice> (txDevice);
@@ -227,7 +227,7 @@ MmWaveChannelMatrix::DoCalcRxPowerSpectralDensity (Ptr<const SpectrumValue> txPs
 				rxAntennaArray = DynamicCast<AntennaArrayModel> (
 							rxEnb->GetPhy ()->GetDlSpectrumPhy ()->GetRxAntenna ());
 			}
-		} 
+		}
 	}
 	else
 	{
@@ -488,7 +488,7 @@ MmWaveChannelMatrix::CalcBeamformingVector(complex2DVector_t spatialMatrix) cons
 
 
 complex2DVector_t
-MmWaveChannelMatrix::GenSpatialMatrix (std::vector<uint16_t> cluster, Angles angle, uint8_t* antennaNum) const
+MmWaveChannelMatrix::GenSpatialMatrix (std::vector<uint16_t> cluster, Angles angle, uint16_t* antennaNum) const
 {
 	complex2DVector_t spatialMatrix;
 	for(unsigned int clusterIndex = 0; clusterIndex < cluster.size (); clusterIndex++)
@@ -520,16 +520,16 @@ MmWaveChannelMatrix::GenSpatialMatrix (std::vector<uint16_t> cluster, Angles ang
 
 
 complexVector_t
-MmWaveChannelMatrix::GenSinglePath (double hAngle, double vAngle, uint8_t* antennaNum) const
+MmWaveChannelMatrix::GenSinglePath (double hAngle, double vAngle, uint16_t* antennaNum) const
 {
 	NS_LOG_FUNCTION (this);
 	complexVector_t singlePath;
 	uint16_t vSize = antennaNum[0];
 	uint16_t hSize = antennaNum[1];
 
-	for (int vIndex = 0; vIndex < vSize; vIndex++)
+	for (uint16_t vIndex = 0; vIndex < vSize; vIndex++)
 	{
-		for (int hIndex =0; hIndex < hSize; hIndex++)
+		for (uint16_t hIndex =0; hIndex < hSize; hIndex++)
 		{
 			double w = (-2)*M_PI*hIndex*m_antennaSeparation*cos(hAngle)
 										+ (-2)*M_PI*vIndex*m_antennaSeparation*cos(vAngle);
@@ -622,7 +622,7 @@ MmWaveChannelMatrix::GetSystemBandwidth () const
 }
 
 
-Ptr<SpectrumValue> 
+Ptr<SpectrumValue>
 MmWaveChannelMatrix::CalcRxPowerSpectralDensity(Ptr<const SpectrumValue> txPsd,
 	                                                   Ptr<const MobilityModel> a,
 	                                                   Ptr<const MobilityModel> b) const

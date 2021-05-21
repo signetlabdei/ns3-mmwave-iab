@@ -92,5 +92,17 @@ MmWaveChunkProcessor::End ()
     }
 }
 
+void
+MmWaveSpectrumValueCatcher::ReportValue (const SpectrumValue& value)
+{
+  m_value = value.Copy ();
+}
+
+Ptr<SpectrumValue> 
+MmWaveSpectrumValueCatcher::GetValue ()
+{
+  return m_value;
+}
+
 
 } // namespace ns3

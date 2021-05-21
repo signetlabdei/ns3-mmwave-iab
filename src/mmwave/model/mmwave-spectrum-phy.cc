@@ -1086,6 +1086,8 @@ MmWaveSpectrumPhy::StartTxDlControlFrames (std::list<Ptr<MmWaveControlMessage> >
 		txParams->pss = true;
 		txParams->ctrlMsgList = ctrlMsgList;
 		txParams->txAntenna = m_antenna;
+
+    DynamicCast<AntennaArrayModel> (GetRxAntenna ())->ChangeToOmniTx (); // currently no error model for ctrl tx, do not compute the psd
 		m_channel->StartTx (txParams);
 		m_endTxEvent = Simulator::Schedule (duration, &MmWaveSpectrumPhy::EndTx, this);
 		//NS_LOG_UNCOND("Tx to cellId " << txParams->cellId << " m_cellID " << m_cellId);

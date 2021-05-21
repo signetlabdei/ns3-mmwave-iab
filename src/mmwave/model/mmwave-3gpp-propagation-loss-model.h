@@ -2,23 +2,23 @@
  /*
  *   Copyright (c) 2011 Centre Tecnologic de Telecomunicacions de Catalunya (CTTC)
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *  
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
+ *
  *   Author: Marco Miozzo <marco.miozzo@cttc.es>
  *           Nicola Baldo  <nbaldo@cttc.es>
- *  
+ *
  *   Modified by: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 	  Sourjya Dutta <sdutta@nyu.edu>
  *        	 	  Russell Ford <russell.ford@nyu.edu>
@@ -64,6 +64,9 @@ typedef std::map< std::pair< Ptr<MobilityModel>, Ptr<MobilityModel> >, channelCo
 class MmWave3gppPropagationLossModel : public PropagationLossModel
 {
 public:
+
+  typedef std::map< std::pair< Ptr<MobilityModel>, Ptr<MobilityModel> >, std::string> channelScenarioMap_t;
+
   static TypeId GetTypeId (void);
   MmWave3gppPropagationLossModel ();
 
@@ -89,9 +92,20 @@ public:
 
   char GetChannelCondition(Ptr<MobilityModel> a, Ptr<MobilityModel> b);
 
-  std::string GetScenario();
+  std::string GetScenario(Ptr<MobilityModel> a, Ptr<MobilityModel> b) const;
 
   double GetLoss (Ptr<MobilityModel> a, Ptr<MobilityModel> b) const;
+
+  void SetLossFixedDb(double loss);
+
+  /**
+   * Get the outdoor to indoor penetration loss according to
+   * the equation 7.4-2 and table 7.4.3-2 in 3GPP TR 38.900 V15.0.0
+   *
+   * \param lowLossModel a boolean flag for the low or high loss model
+   * \return a double with the outdoor to indoor pathloss
+   */
+  double GetOutdoorToIndoorLoss(bool lowLossModel, std::string scenario);
 
 private:
   MmWave3gppPropagationLossModel (const MmWave3gppPropagationLossModel &o);
@@ -102,20 +116,39 @@ private:
   virtual int64_t DoAssignStreams (int64_t stream);
   void UpdateConditionMap (Ptr<MobilityModel> a, Ptr<MobilityModel> b, channelCondition cond) const;
 
-  std::tuple<Ptr<MobilityModel>, Ptr<MobilityModel>, bool >GetEnbUePair(Ptr<MobilityModel> a, Ptr<MobilityModel> b) const;
+  /**
+   * Get info on the pair of nodes associated to the two mobility models 
+   * given as input parameters
+   *
+   * \param a the first mobility model
+   * \param b the second mobility model
+   * \return tuple with the pointer to the mobility model of the eNB, of the UE, a
+   * flag that signals to skip the pathloss computation and a flag that signals a backhaul link
+   */
+  std::tuple<Ptr<MobilityModel>, Ptr<MobilityModel>, bool, bool > GetEnbUePair(Ptr<MobilityModel> a, Ptr<MobilityModel> b) const;
 
   double m_lambda;
   double m_frequency;
   double m_minLoss;
   mutable channelConditionMap_t m_channelConditionMap;
+  mutable channelScenarioMap_t m_channelScenarioMap;
   std::string m_channelConditions; //limit the channel condition to be LoS/NLoS only.
-  std::string m_scenario;
+  std::string m_scenarioEnbEnb; // channel scenario for eNB to eNB communicaions.
+  std::string m_scenarioEnbUe; // channel scenario for eNB to UE and UE to eNB communicaions.
+  std::string m_scenarioEnbIab; // channel scenario for eNB to IAB and IAB to eNB communicaions.
+  std::string m_scenarioUeUe; // channel scenario for UE to UE communicaions.
+  std::string m_scenarioIabUe; // channel scenario for IAB to UE and UE to IAB communicaions.
+  std::string m_scenarioIabIab; // channel scenario for IAB to IAB communicaions.
   bool m_optionNlosEnabled;
   Ptr<NormalRandomVariable> m_norVar;
   Ptr<UniformRandomVariable> m_uniformVar;
   bool m_shadowingEnabled;
   bool m_inCar;
   Ptr<MmWavePhyMacCommon> m_phyMacConfig;
+
+  // for testing
+  bool m_fixedLossTst;
+  double m_lossFixedDb;
 };
 
 #endif

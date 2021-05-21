@@ -1,21 +1,21 @@
  /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
  /*
  *   Copyright (c) 2015, NYU WIRELESS, Tandon School of Engineering, New York University
- *  
+ *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2 as
  *   published by the Free Software Foundation;
- *  
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *  
+ *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *  
- *  
+ *
+ *
  *   Author: Marco Mezzavilla < mezzavilla@nyu.edu>
  *        	 Sourjya Dutta <sdutta@nyu.edu>
  *        	 Russell Ford <russell.ford@nyu.edu>
@@ -142,7 +142,7 @@ MmWave3gppBuildingsPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<Mobi
 		else if(a1->IsIndoor () && b1->IsIndoor ())
 		{
 			//NS_FATAL_ERROR("indoor propagation loss not implemented yet");
-			return	m_3gppLos->GetLoss (a,b);
+			return m_3gppLos->GetLoss (a,b);
 
 		}
 		else //outdoor to indoor case
@@ -150,76 +150,20 @@ MmWave3gppBuildingsPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<Mobi
 			//PL = PL_b + PL_tw + PL_in + N(0,sig^2); (7.4-2)
 			//Here we assume the indoor nodes are all NLOS O2I.
 			condition.m_channelCondition = 'i';
+
 			//Compute the addition indoor pathloss term when this is the first transmission, or the node moves from outdoor to indoor.
 			if(it == m_conditionMap.end () || (*it).second.m_channelCondition != 'i')
 			{
-				double lossIndoor = 0;
-				double PL_tw;
-				double stdP;
-				if(m_3gppNlos->GetScenario ()== "RMa")
-				{
-					// only low-loss model is applied to RMa
-					PL_tw = 5-10*log10(0.3*pow(10,-1*(2+0.2*m_frequency*1e-9)/10)+0.7*pow(10,-1*(5+4*m_frequency*1e-9)/10));
-					stdP = 4.4;
-				}
-				else
-				{
-					if (a1->IsIndoor () && b1->IsOutdoor ())
-					{
-						if(a1->GetBuilding()->GetBuildingType () == Building::Commercial || a1->GetBuilding()->GetBuildingType () == Building::Office)
-						{
-							NS_LOG_DEBUG ("Commercial and office building use high-loss model for UMa and UMi, use low-loss model for RMa");
-							PL_tw = 5-10*log10(0.7*pow(10,-1*(23+0.3*m_frequency*1e-9)/10)+0.3*pow(10,-1*(5+4*m_frequency*1e-9)/10));
-							stdP = 6.5;
-						}
-						else
-						{
-							NS_LOG_DEBUG ("Residential building use low-loss model");
-							PL_tw = 5-10*log10(0.3*pow(10,-1*(2+0.2*m_frequency*1e-9)/10)+0.7*pow(10,-1*(5+4*m_frequency*1e-9)/10));
-							stdP = 4.4;
+				std::string scenario = m_3gppNlos->GetScenario (a, b);
 
-						}
+				bool lowLossModel = (scenario == "RMa") ||
+					(b1->IsOutdoor () && (a1->GetBuilding()->GetBuildingType () == Building::Residential)) ||
+					(a1->IsOutdoor () && (b1->GetBuilding()->GetBuildingType () == Building::Residential));
 
-					}
-					else if (b1->IsIndoor () && a1->IsOutdoor ())
-					{
-						if(b1->GetBuilding()->GetBuildingType () == Building::Commercial || b1->GetBuilding()->GetBuildingType () == Building::Office)
-						{
-							NS_LOG_DEBUG("Commercial and office building use high-loss model for UMa and UMi, use low-loss model for RMa");
-							PL_tw = 5-10*log10(0.7*pow(10,-1*(23+0.3*m_frequency*1e-9)/10)+0.3*pow(10,-1*(5+4*m_frequency*1e-9)/10));
-							stdP = 6.5;
-						}
+				NS_LOG_DEBUG ("Commercial and office building use high-loss model for UMa and UMi, use low-loss model for RMa " << lowLossModel);
 
-						else
-						{
-							NS_LOG_DEBUG ("Residential building use low-loss model");
-							PL_tw = 5-10*log10(0.3*pow(10,-1*(2+0.2*m_frequency*1e-9)/10)+0.7*pow(10,-1*(5+4*m_frequency*1e-9)/10));
-							stdP = 4.4;
-						}
+				double lossIndoor = m_3gppNlos->GetOutdoorToIndoorLoss(lowLossModel, scenario);
 
-					}
-					else
-					{
-						NS_FATAL_ERROR("Programming Error");
-					}
-				}
-				lossIndoor += PL_tw;
-				//compute PL_in
-				Ptr<UniformRandomVariable> uniRv1 = CreateObject<UniformRandomVariable> ();
-				Ptr<UniformRandomVariable> uniRv2 = CreateObject<UniformRandomVariable> ();
-				double dis_2D_in;
-				if(m_3gppNlos->GetScenario ()== "RMa")
-				{
-					dis_2D_in = std::min(uniRv1->GetValue(0,10), uniRv2->GetValue(0,10));
-				}
-				else
-				{
-					dis_2D_in = std::min(uniRv1->GetValue(0,25), uniRv2->GetValue(0,25));
-				}
-				lossIndoor += 0.5*dis_2D_in;
-				//compute indoor shadowing
-				Ptr<NormalRandomVariable> norRv = CreateObject<NormalRandomVariable> ();
-				lossIndoor += stdP*norRv->GetValue();
 				//store the indoor pathloss term to the shadowing parameter.
 				condition.m_shadowing = lossIndoor;
 			}
@@ -263,8 +207,8 @@ MmWave3gppBuildingsPropagationLossModel::GetLoss (Ptr<MobilityModel> a, Ptr<Mobi
 	}
 	else if ((*it).second.m_channelCondition == 'i')
 	{
-		//for simplicity, the pathloss formulat still use d_2D instead of d_2D_out.
-		//All the indoor pathloss terms are stored in the m_shadowing.
+		// for simplicity, the pathloss formulat still use d_2D instead of d_2D_out.
+		// All the indoor pathloss terms are stored in the m_shadowing.
 		loss =  m_3gppNlos->GetLoss (a,b) + (*it).second.m_shadowing;
 	}
 	else
@@ -392,9 +336,10 @@ MmWave3gppBuildingsPropagationLossModel::LocationTrace (Vector enbLoc, Vector ue
 }
 
 std::string
-MmWave3gppBuildingsPropagationLossModel::GetScenario ()
+MmWave3gppBuildingsPropagationLossModel::GetScenario (Ptr<MobilityModel> a, Ptr<MobilityModel> b)
 {
-	return m_3gppLos->GetScenario();
+	NS_ASSERT_MSG (m_3gppLos->GetScenario (a,b) == m_3gppNlos->GetScenario (a,b), "m_3gppLos and m_3gppNLos scenarios are different");
+	return m_3gppLos->GetScenario(a, b);
 }
 
 char

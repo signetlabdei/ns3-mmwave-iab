@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab. 
+ * Copyright (c) 2016, University of Padova, Dep. of Information Engineering, SIGNET lab.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -117,7 +117,7 @@ TypeId McUeNetDevice::GetTypeId (void)
 				   UintegerValue (16),
 				   MakeUintegerAccessor (&McUeNetDevice::SetAntennaNum,
 										 &McUeNetDevice::GetAntennaNum),
-				   MakeUintegerChecker<uint8_t> ())
+				   MakeUintegerChecker<uint16_t> ())
 	;
 	return tid;
 }
@@ -188,7 +188,7 @@ Ptr<Channel>
 McUeNetDevice::GetChannel (void) const
 {
   NS_LOG_FUNCTION (this);
-  // we can't return a meaningful channel here, because LTE devices using FDD 
+  // we can't return a meaningful channel here, because LTE devices using FDD
   // have actually two channels + one channel for mmWave TDD.
   return 0;
 }
@@ -415,10 +415,10 @@ McUeNetDevice::UpdateConfig (void)
 		m_lteRrc->SetImsi (m_imsi);
     if(m_mmWaveRrc!=0)
     {
-      m_mmWaveRrc->SetImsi (m_imsi);  
+      m_mmWaveRrc->SetImsi (m_imsi);
     }
-		
-		m_nas->SetCsgId (m_csgId); // TODO this also handles propagation to RRC (LTE only for now) 
+
+		m_nas->SetCsgId (m_csgId); // TODO this also handles propagation to RRC (LTE only for now)
 	}
 	else
 	{
@@ -555,15 +555,16 @@ McUeNetDevice::GetMmWaveTargetEnb (void)
 	return m_mmWaveTargetEnb;
 }
 
-uint8_t
+uint16_t
 McUeNetDevice::GetAntennaNum () const
 {
 	return m_mmWaveAntennaNum;
 }
 
 void
-McUeNetDevice::SetAntennaNum (uint8_t antennaNum)
+McUeNetDevice::SetAntennaNum (uint16_t antennaNum)
 {
+  NS_ASSERT_MSG (std::floor (std::sqrt(antennaNum)) == std::sqrt(antennaNum), "Only square antenna arrays are currently supported.");
 	m_mmWaveAntennaNum = antennaNum;
 }
 
@@ -575,7 +576,7 @@ McUeNetDevice::DoSend (Ptr<Packet> packet, const Address& dest, uint16_t protoco
 	{
 	  NS_LOG_INFO("unsupported protocol " << protocolNumber << ", only IPv4 is supported");
 	  return true;
-	}  
+	}
   return m_nas->Send(packet);
 }
 

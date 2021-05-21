@@ -688,7 +688,24 @@ MmWaveEnbMac::DoReceiveControlMessage  (Ptr<MmWaveControlMessage> msg)
 		case (MmWaveControlMessage::BSR):
 		{
 			Ptr<MmWaveBsrMessage> bsr = DynamicCast<MmWaveBsrMessage> (msg);
-		  	m_ulCeReceived.push_back (bsr->GetBsr ());
+
+      // check if the UE who sent this BSR is a valid UE
+      bool excludedUe = false;
+      for (std::vector<uint16_t>::iterator it = m_excludedUes.begin() ; it != m_excludedUes.end(); ++it)
+      {
+        if (*it == bsr->GetBsr ().m_rnti)
+        {
+          excludedUe = true;
+          break;
+        }
+      }
+
+      // if it is a valid UE, forward the BSR to the scheduler, otherwise
+      // discard it
+      if (!excludedUe)
+      {
+        m_ulCeReceived.push_back (bsr->GetBsr ());
+      }
 			break;
 		}
 		case (MmWaveControlMessage::DL_HARQ):
@@ -977,17 +994,34 @@ void
 MmWaveEnbMac::DoRemoveUe (uint16_t rnti)
 {
   NS_LOG_FUNCTION (this << " rnti = " << rnti << " cellId " << m_cellId);
+  m_excludedUes.push_back (rnti); // add this UE in the list of excluded UEs
   MmWaveMacCschedSapProvider::CschedUeReleaseReqParameters params;
   params.m_rnti = rnti;
   m_macCschedSapProvider->CschedUeReleaseReq (params);
   m_miDlHarqProcessesPackets.erase (rnti);
-  // for(std::vector<UlHarqInfo>::iterator iter = m_ulHarqInfoReceived.begin(); iter != m_ulHarqInfoReceived.end(); ++iter)
-  // {
-  // 	if(iter->m_rnti == rnti)
-  // 	{
-  // 		iter = m_ulHarqInfoReceived.erase(iter);
-  // 	}
-  // }
+  for(std::vector<UlHarqInfo>::iterator iter = m_ulHarqInfoReceived.begin(); iter != m_ulHarqInfoReceived.end();)
+  {
+   	if((*iter).m_rnti == rnti)
+   	{
+   		m_ulHarqInfoReceived.erase(iter);
+   	}
+    else
+    {
+      ++iter;
+    }
+  }
+
+  for (std::vector<MacCeElement>::iterator iter = m_ulCeReceived.begin(); iter != m_ulCeReceived.end();)
+  {
+    if((*iter).m_rnti == rnti)
+    {
+      m_ulCeReceived.erase(iter);
+    }
+    else
+    {
+      ++iter;
+    }
+  }
   m_rlcAttached.erase (rnti);
 }
 
