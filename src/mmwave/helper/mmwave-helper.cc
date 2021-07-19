@@ -638,6 +638,7 @@ MmWaveHelper::InstallSingleIabDevice(Ptr<Node> n)
 	ulPhy->SetAntenna (antenna);
 
 	Ptr<LteUeRrc> rrc = CreateObject<LteUeRrc> ();
+	rrc->SetIab(true);
 	if (m_useIdealRrc)
 	{
 		NS_FATAL_ERROR("For now, only the real RRC is supported");
