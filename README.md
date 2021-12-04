@@ -1,6 +1,6 @@
 # Code for the paper "Resource Management for 5G NR Integrated Access and Backhaul: a Semi-centralized Approach" #
 
-This repository holds the code for the paper "Resource Management for 5G NR Integrated Access and Backhaul: a Semi-centralized Approach", which is available as a pre-print on [arXiv](https://arxiv.org/abs/2102.09938).
+This repository holds the code for the paper "Resource Management for 5G NR Integrated Access and Backhaul: a Semi-centralized Approach", which is available as a pre-print on [arXiv](https://arxiv.org/abs/2102.09938) and has been published on the [IEEE Transactions on Wireless Communications](https://ieeexplore.ieee.org/document/9500058).
 In particular, we hereby provide the ns-3 IAB module that we used, which is described in [our previous paper](/ "IAB") and on OCTAVE script, as empirical evidence of the optimality of the algorithm that we present.
 
 # Other relevant papers on IAB #
